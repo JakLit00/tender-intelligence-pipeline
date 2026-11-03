@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 
 
-PUBLICATION_NUMBER = "706539-2026"
+PUBLICATION_NUMBER = "124934-2026"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = PROJECT_ROOT / "data" / "inspection"
 
