@@ -1,0 +1,4 @@
+services:
+  postgres:
+    # Initialization checks do not need a host port.
+    ports: !reset []
