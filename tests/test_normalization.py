@@ -2,11 +2,14 @@
 
 import pytest
 
+from datetime import date, datetime, timezone
 from tender_intelligence.normalization import (
     classify_changed_notice_reference,
     normalize_notice_id,
     normalize_notice_metadata,
     normalize_publication_number,
+    normalize_xml_date,
+    normalize_submission_deadline,
 )
 
 
@@ -154,3 +157,103 @@ def test_rejects_invalid_notice_ids(value):
 def test_metadata_normalization_requires_notice_id():
     with pytest.raises(ValueError, match="Missing notice identifier"):
         normalize_notice_metadata({"notice_id": None})
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2026-10-20",
+        "2026-10-20Z",
+        "2026-10-20+02:00",
+        "2026-10-20-05:00",
+        " 2026-10-20+14:00 ",
+    ],
+)
+def test_xml_date_preserves_source_calendar_day(value):
+    assert normalize_xml_date(value) == date(2026, 10, 20)
+
+
+def test_xml_date_accepts_leap_day():
+    assert normalize_xml_date("2024-02-29Z") == date(2024, 2, 29)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "2026-02-29",
+        "2026-02-30",
+        "2026-13-01",
+        "20-10-2026",
+        "2026-10-20+14:01",
+        "2026-10-20+01:60",
+        "2026-10-20T09:00:00+02:00",
+    ],
+)
+def test_xml_date_rejects_invalid_or_unsupported_values(value):
+    with pytest.raises(ValueError, match="Invalid XML date"):
+        normalize_xml_date(value)
+
+@pytest.mark.parametrize(
+    ("date_raw", "time_raw"),
+    [
+        ("2026-11-03+01:00", "09:00:00+01:00"),
+        ("2026-11-03", "09:00:00+01:00"),
+        ("2026-11-03+01:00", "09:00:00"),
+        ("2026-11-03Z", "08:00:00Z"),
+    ],
+)
+def test_deadline_resolves_to_the_correct_instant(date_raw, time_raw):
+    local_date, deadline = normalize_submission_deadline(date_raw, time_raw)
+
+    assert local_date == date(2026, 11, 3)
+    assert deadline is not None
+    assert deadline.astimezone(timezone.utc) == datetime(
+        2026, 11, 3, 8, 0, tzinfo=timezone.utc
+    )
+
+
+@pytest.mark.parametrize(
+    ("date_raw", "time_raw", "expected_date"),
+    [
+        ("2026-11-03+01:00", None, date(2026, 11, 3)),
+        ("2026-11-03", "09:00:00", date(2026, 11, 3)),
+        (None, "09:00:00+01:00", None),
+        (None, None, None),
+    ],
+)
+def test_incomplete_deadline_does_not_invent_an_instant(
+    date_raw, time_raw, expected_date
+):
+    assert normalize_submission_deadline(date_raw, time_raw) == (
+        expected_date,
+        None,
+    )
+
+
+def test_deadline_rejects_conflicting_offsets():
+    with pytest.raises(ValueError, match="Conflicting deadline timezone offsets"):
+        normalize_submission_deadline(
+            "2026-11-03+01:00",
+            "09:00:00+02:00",
+        )
+
+
+@pytest.mark.parametrize("time_raw", ["25:00:00", "09:60:00", "09:00:00+14:01"])
+def test_deadline_rejects_invalid_time(time_raw):
+    with pytest.raises(ValueError, match="Invalid XML time"):
+        normalize_submission_deadline("2026-11-03", time_raw)
+
+
+def test_deadline_handles_offset_change_between_publications():
+    _, previous = normalize_submission_deadline(
+        "2026-10-22+02:00", "09:00:00+02:00"
+    )
+    _, current = normalize_submission_deadline(
+        "2026-11-03+01:00", "09:00:00+01:00"
+    )
+
+    assert previous is not None
+    assert current is not None
+    assert previous.astimezone(timezone.utc).hour == 7
+    assert current.astimezone(timezone.utc).hour == 8
+    assert (current.date() - previous.date()).days == 12

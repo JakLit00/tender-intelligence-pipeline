@@ -1,6 +1,7 @@
 """Normalize source values used to identify and compare notices."""
 
 import re
+from datetime import date, datetime, time
 from uuid import UUID
 
 
@@ -12,6 +13,16 @@ NOTICE_VERSION_REFERENCE_PATTERN = re.compile(
     r"-(?P<notice_version>[0-9]{2})"
 )
 
+XML_DATE_PATTERN = re.compile(
+    r"(?P<date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
+    r"(?P<offset>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?"
+)
+
+XML_TIME_PATTERN = re.compile(
+    r"[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]{1,6})?"
+    r"(?:Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?"
+)
 
 def normalize_publication_number(value: str) -> str:
     """Normalize a TED publication number to an unpadded number-year."""
@@ -108,3 +119,75 @@ def classify_changed_notice_reference(
     # Unknown formats remain available for later resolution and auditing.
     result["reference_type"] = "unresolved"
     return result
+
+def normalize_xml_date(value: str) -> date:
+    """Extract a calendar date from the supported XML date format."""
+    match = XML_DATE_PATTERN.fullmatch(value.strip())
+
+    if match is None:
+        raise ValueError(f"Invalid XML date: {value!r}")
+
+    try:
+        # Preserve the source calendar day; a date alone is not a UTC instant.
+        return date.fromisoformat(match.group("date"))
+    except ValueError as exc:
+        raise ValueError(f"Invalid XML date: {value!r}") from exc
+
+def normalize_submission_deadline(
+    date_raw: str | None,
+    time_raw: str | None,
+) -> tuple[date | None, datetime | None]:
+    """Return the source calendar date and an aware deadline when possible."""
+    date_text = date_raw.strip() if date_raw is not None else ""
+    time_text = time_raw.strip() if time_raw is not None else ""
+
+    local_date = None
+    date_timezone = None
+    parsed_time = None
+
+    if date_text:
+        local_date = normalize_xml_date(date_text)
+        date_match = XML_DATE_PATTERN.fullmatch(date_text)
+
+        # normalize_xml_date has already validated the complete date string.
+        assert date_match is not None
+        offset = date_match.group("offset")
+
+        if offset is not None:
+            date_timezone = time.fromisoformat(
+                f"00:00:00{offset}"
+            ).tzinfo
+
+    if time_text:
+        if XML_TIME_PATTERN.fullmatch(time_text) is None:
+            raise ValueError(f"Invalid XML time: {time_raw!r}")
+
+        try:
+            parsed_time = time.fromisoformat(time_text)
+        except ValueError as exc:
+            raise ValueError(f"Invalid XML time: {time_raw!r}") from exc
+
+    if local_date is None or parsed_time is None:
+        return local_date, None
+
+    time_timezone = parsed_time.tzinfo
+
+    if (
+        date_timezone is not None
+        and time_timezone is not None
+        and date_timezone != time_timezone
+    ):
+        raise ValueError("Conflicting deadline timezone offsets")
+
+    deadline_timezone = time_timezone or date_timezone
+
+    # Never infer a timezone from the machine running the pipeline.
+    if deadline_timezone is None:
+        return local_date, None
+
+    deadline = datetime.combine(
+        local_date,
+        parsed_time,
+        tzinfo=deadline_timezone,
+    )
+    return local_date, deadline
