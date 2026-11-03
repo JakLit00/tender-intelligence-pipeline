@@ -1,0 +1,40 @@
+# Local environment variables
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Test coverage reports
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local data and logs
+data/
+logs/
+*.log
+
+# dbt generated files and installed packages
+target/
+dbt_packages/
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
