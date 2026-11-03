@@ -9,5 +9,13 @@ description = "A data pipeline for monitoring Polish IT procurement notices from
 requires-python = ">=3.13,<3.14"
 dependencies = []
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
