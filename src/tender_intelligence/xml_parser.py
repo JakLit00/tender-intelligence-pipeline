@@ -117,21 +117,31 @@ def parse_notice_lots(xml_bytes: bytes) -> list[dict[str, str | None]]:
         if lot_id is None:
             raise ValueError("Missing lot identifier")
 
-        # Lot identifiers must be unique within this notice, not across all notices.
+        # Lot identifiers are unique within a notice, not across all notices.
         if lot_id in seen_lot_ids:
             raise ValueError(f"Duplicate lot identifier: {lot_id}")
 
         seen_lot_ids.add(lot_id)
+        deadlines = lot.findall(deadline_path, NAMESPACES)
+
+        # Never combine a date and time from separate deadline blocks.
+        if len(deadlines) > 1:
+            raise ValueError(
+                f"Multiple submission deadline periods for lot: {lot_id}"
+            )
+
+        deadline_date = None
+        deadline_time = None
+
+        if deadlines:
+            deadline_date = read_text(deadlines[0], "cbc:EndDate")
+            deadline_time = read_text(deadlines[0], "cbc:EndTime")
 
         lots.append(
             {
                 "lot_id": lot_id,
-                "submission_deadline_date_raw": read_text(
-                    lot, f"{deadline_path}/cbc:EndDate"
-                ),
-                "submission_deadline_time_raw": read_text(
-                    lot, f"{deadline_path}/cbc:EndTime"
-                ),
+                "submission_deadline_date_raw": deadline_date,
+                "submission_deadline_time_raw": deadline_time,
             }
         )
 

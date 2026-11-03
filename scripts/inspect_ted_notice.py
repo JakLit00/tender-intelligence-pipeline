@@ -24,6 +24,9 @@ SELECTED_FIELDS = {
     "EndDate",
     "EndTime",
     "SubmissionDeadline",
+    "ReasonCode",
+    "NoticePublicationID",
+    "PublicationDate",
 }
 
 
