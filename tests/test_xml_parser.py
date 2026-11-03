@@ -2,7 +2,10 @@
 
 import pytest
 
-from tender_intelligence.xml_parser import parse_notice_lots
+from tender_intelligence.xml_parser import (
+    parse_notice_lots,
+    parse_notice_metadata,
+)
 
 
 def make_notice(lots_xml: str) -> bytes:
@@ -95,3 +98,72 @@ def test_duplicate_lot_identifier_is_rejected():
 
     with pytest.raises(ValueError, match="Duplicate lot identifier"):
         parse_notice_lots(xml)
+
+def test_metadata_uses_publication_date_and_preserves_raw_values():
+    xml = make_notice("""
+        <cbc:ID schemeName="notice-id">notice-123</cbc:ID>
+        <cbc:ContractFolderID>procedure-456</cbc:ContractFolderID>
+        <cbc:VersionID>01</cbc:VersionID>
+        <cbc:NoticeTypeCode>cn-standard</cbc:NoticeTypeCode>
+        <cbc:IssueDate>2026-10-19Z</cbc:IssueDate>
+        <ext:UBLExtensions
+            xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+            xmlns:efext="http://data.europa.eu/p27/eforms-ubl-extensions/1"
+            xmlns:efac="http://data.europa.eu/p27/eforms-ubl-extension-aggregate-components/1"
+            xmlns:efbc="http://data.europa.eu/p27/eforms-ubl-extension-basic-components/1"
+        >
+            <ext:UBLExtension>
+                <ext:ExtensionContent>
+                    <efext:EformsExtension>
+                        <efac:Publication>
+                            <efbc:NoticePublicationID>00722762-2026</efbc:NoticePublicationID>
+                            <efbc:PublicationDate>2026-10-20+02:00</efbc:PublicationDate>
+                        </efac:Publication>
+                        <efac:Changes>
+                            <efbc:ChangedNoticeIdentifier>706539-2026</efbc:ChangedNoticeIdentifier>
+                            <efac:ChangeReason>
+                                <cbc:ReasonCode>cor-buy</cbc:ReasonCode>
+                            </efac:ChangeReason>
+                        </efac:Changes>
+                    </efext:EformsExtension>
+                </ext:ExtensionContent>
+            </ext:UBLExtension>
+        </ext:UBLExtensions>
+    """)
+
+    result = parse_notice_metadata(xml)
+
+    assert result == {
+        "notice_id": "notice-123",
+        "notice_version": "01",
+        "procedure_id": "procedure-456",
+        "notice_type": "cn-standard",
+        "publication_number_raw": "00722762-2026",
+        "publication_date_raw": "2026-10-20+02:00",
+        "changed_notice_identifier_raw": "706539-2026",
+        "change_reason_code": "cor-buy",
+    }
+
+
+def test_notice_without_changes_has_no_predecessor_or_reason():
+    xml = make_notice("""
+        <cbc:ID schemeName="notice-id">notice-123</cbc:ID>
+        <cbc:NoticeTypeCode>cn-standard</cbc:NoticeTypeCode>
+    """)
+
+    result = parse_notice_metadata(xml)
+
+    assert result["changed_notice_identifier_raw"] is None
+    assert result["change_reason_code"] is None
+
+
+def test_nested_identifier_does_not_replace_missing_notice_identifier():
+    # A lot ID must not be mistaken for the notice-level ID.
+    xml = make_notice("""
+        <cac:ProcurementProjectLot>
+            <cbc:ID>LOT-0001</cbc:ID>
+        </cac:ProcurementProjectLot>
+    """)
+
+    with pytest.raises(ValueError, match="Missing notice identifier"):
+        parse_notice_metadata(xml)
