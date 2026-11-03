@@ -167,3 +167,24 @@ def test_nested_identifier_does_not_replace_missing_notice_identifier():
 
     with pytest.raises(ValueError, match="Missing notice identifier"):
         parse_notice_metadata(xml)
+
+def test_rejects_date_and_time_in_separate_deadline_blocks():
+    xml = make_notice("""
+        <cac:ProcurementProjectLot>
+            <cbc:ID>LOT-0001</cbc:ID>
+            <cac:TenderingProcess>
+                <cac:TenderSubmissionDeadlinePeriod>
+                    <cbc:EndDate>2026-11-03+01:00</cbc:EndDate>
+                </cac:TenderSubmissionDeadlinePeriod>
+                <cac:TenderSubmissionDeadlinePeriod>
+                    <cbc:EndTime>09:00:00+01:00</cbc:EndTime>
+                </cac:TenderSubmissionDeadlinePeriod>
+            </cac:TenderingProcess>
+        </cac:ProcurementProjectLot>
+    """)
+
+    with pytest.raises(
+        ValueError,
+        match="Multiple submission deadline periods",
+    ):
+        parse_notice_lots(xml)
