@@ -7,7 +7,10 @@ name = "tender-intelligence-pipeline"
 version = "0.1.0"
 description = "A data pipeline for monitoring Polish IT procurement notices from TED."
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.3,<4",
+    "python-dotenv>=1.2,<2",
+]
 
 [project.optional-dependencies]
 dev = [
