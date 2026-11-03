@@ -21,3 +21,30 @@ def normalize_publication_number(value: str) -> str:
 
     # Remove padding only from the numeric part, preserving the year.
     return f"{number}-{year}"
+
+def classify_changed_notice_reference(
+    value: str | None,
+) -> dict[str, str | None]:
+    """Classify a predecessor reference without discarding unknown formats."""
+    if value is None or not value.strip():
+        return {
+            "reference_raw": value,
+            "reference_type": "missing",
+            "publication_number": None,
+        }
+
+    try:
+        publication_number = normalize_publication_number(value)
+    except ValueError:
+        # Unknown formats remain available for later resolution and auditing.
+        return {
+            "reference_raw": value,
+            "reference_type": "unresolved",
+            "publication_number": None,
+        }
+
+    return {
+        "reference_raw": value,
+        "reference_type": "publication_number",
+        "publication_number": publication_number,
+    }
