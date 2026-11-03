@@ -33,3 +33,8 @@ dbt_packages/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
