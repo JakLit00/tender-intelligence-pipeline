@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "A data pipeline for monitoring Polish IT procurement notices from TED."
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "pandas>=2.2.3,<3",
     "psycopg[binary]>=3.3,<4",
     "python-dotenv>=1.2,<2",
 ]
