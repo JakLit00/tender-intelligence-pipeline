@@ -110,3 +110,51 @@ def save_prepared_notice(
                     INSERT_LOT_SQL,
                     [asdict(lot) for lot in bundle.lots],
                 )
+
+def save_notice_xml(
+    conn: psycopg.Connection,
+    publication_number: str,
+    xml_content: bytes,
+) -> bool:
+    """Store changed XML and return whether processing is required."""
+    if not xml_content:
+        raise ValueError("XML content must not be empty")
+
+    with conn.transaction():
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT xml_content, processing_status
+                FROM raw.notices
+                WHERE publication_number = %s
+                FOR UPDATE
+                """,
+                (publication_number,),
+            )
+            row = cursor.fetchone()
+
+            if row is None:
+                raise ValueError(
+                    f"Publication not found in raw.notices: {publication_number}"
+                )
+
+            previous_xml, processing_status = row
+
+            if previous_xml == xml_content:
+                return processing_status != "succeeded"
+
+            # Changed source bytes invalidate the previous processing result.
+            cursor.execute(
+                """
+                UPDATE raw.notices
+                SET xml_content = %s,
+                    xml_downloaded_at = CURRENT_TIMESTAMP,
+                    processing_status = 'pending',
+                    processed_at = NULL,
+                    last_error = NULL
+                WHERE publication_number = %s
+                """,
+                (xml_content, publication_number),
+            )
+
+    return True
