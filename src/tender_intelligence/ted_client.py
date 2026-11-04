@@ -1,6 +1,10 @@
 import json
 from typing import Any
 from urllib.request import Request, urlopen
+import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from urllib.error import HTTPError
 
 
 SEARCH_URL = "https://api.ted.europa.eu/v3/notices/search"
@@ -14,6 +18,61 @@ SEARCH_FIELDS = (
     "classification-cpv",
 )
 
+RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 3
+MAX_RETRY_DELAY_SECONDS = 60
+
+
+def _retry_delay(value: str | None, *, attempt: int) -> float:
+    fallback = float(2 ** (attempt - 1))
+
+    if value is None:
+        return fallback
+
+    value = value.strip()
+
+    if value.isascii() and value.isdigit():
+        return float(value)
+
+    try:
+        retry_at = parsedate_to_datetime(value)
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+
+    if retry_at.tzinfo is None:
+        return fallback
+
+    return max(
+        0.0,
+        (retry_at - datetime.now(timezone.utc)).total_seconds(),
+    )
+
+
+def _request_search_json(request: Request) -> Any:
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            with urlopen(request, timeout=30) as response:
+                return json.load(response)
+        except HTTPError as exc:
+            if (
+                exc.code not in RETRYABLE_HTTP_CODES
+                or attempt == MAX_ATTEMPTS
+            ):
+                raise
+
+            delay = _retry_delay(
+                exc.headers.get("Retry-After"),
+                attempt=attempt,
+            )
+
+            # Stop rather than retry earlier than the server requested.
+            if delay > MAX_RETRY_DELAY_SECONDS:
+                raise
+
+            exc.close()
+            time.sleep(delay)
+
+    raise RuntimeError("Search request attempts exhausted")
 
 def fetch_search_page(
     query: str,
@@ -53,8 +112,7 @@ def fetch_search_page(
         method="POST",
     )
 
-    with urlopen(request, timeout=30) as response:
-        result = json.load(response)
+    result = _request_search_json(request)
 
     if not isinstance(result, dict):
         raise ValueError("Expected a JSON object from TED")

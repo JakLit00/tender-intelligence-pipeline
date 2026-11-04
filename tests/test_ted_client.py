@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta, timezone
+from email.message import Message
+from email.utils import format_datetime
+
 import io
 import json
-from unittest.mock import patch
-from urllib.error import URLError
+from unittest.mock import call, patch
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -172,3 +176,165 @@ def test_rejects_invalid_json() -> None:
     ):
         with pytest.raises(json.JSONDecodeError):
             fetch_search_page("buyer-country = POL")
+
+def http_error(
+    status: int,
+    retry_after: str | None = None,
+) -> HTTPError:
+    headers = Message()
+
+    if retry_after is not None:
+        headers["Retry-After"] = retry_after
+
+    return HTTPError(
+        url="https://api.ted.europa.eu/v3/notices/search",
+        code=status,
+        msg="Test HTTP error",
+        hdrs=headers,
+        fp=io.BytesIO(b""),
+    )
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+def test_retries_transient_http_error(status: int) -> None:
+    response = {
+        "notices": [],
+        "totalNoticeCount": 0,
+        "timedOut": False,
+    }
+
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=[
+                http_error(status),
+                json_response(response),
+            ],
+        ) as mocked_urlopen,
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        result = fetch_search_page("buyer-country = POL")
+
+    assert result == response
+    assert mocked_urlopen.call_count == 2
+    mocked_sleep.assert_called_once_with(1.0)
+
+
+def test_stops_after_three_failed_attempts() -> None:
+    errors = [http_error(503) for _ in range(3)]
+
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=errors,
+        ) as mocked_urlopen,
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        with pytest.raises(HTTPError) as caught:
+            fetch_search_page("buyer-country = POL")
+
+    assert caught.value is errors[-1]
+    assert mocked_urlopen.call_count == 3
+    assert mocked_sleep.call_args_list == [call(1.0), call(2.0)]
+
+
+def test_does_not_retry_bad_request() -> None:
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=http_error(400),
+        ) as mocked_urlopen,
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        with pytest.raises(HTTPError) as caught:
+            fetch_search_page("invalid query")
+
+    assert caught.value.code == 400
+    mocked_urlopen.assert_called_once()
+    mocked_sleep.assert_not_called()
+
+
+def test_respects_retry_after_seconds() -> None:
+    response = {
+        "notices": [],
+        "totalNoticeCount": 0,
+        "timedOut": False,
+    }
+
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=[
+                http_error(429, "7"),
+                json_response(response),
+            ],
+        ),
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        assert fetch_search_page("buyer-country = POL") == response
+
+    mocked_sleep.assert_called_once_with(7.0)
+
+
+def test_respects_retry_after_http_date() -> None:
+    now = datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
+    retry_at = format_datetime(now + timedelta(seconds=10), usegmt=True)
+    response = {
+        "notices": [],
+        "totalNoticeCount": 0,
+        "timedOut": False,
+    }
+
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=[
+                http_error(503, retry_at),
+                json_response(response),
+            ],
+        ),
+        patch("tender_intelligence.ted_client.datetime") as mocked_datetime,
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        mocked_datetime.now.return_value = now
+        assert fetch_search_page("buyer-country = POL") == response
+
+    mocked_sleep.assert_called_once_with(10.0)
+
+
+def test_invalid_retry_after_uses_fallback_delay() -> None:
+    response = {
+        "notices": [],
+        "totalNoticeCount": 0,
+        "timedOut": False,
+    }
+
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=[
+                http_error(503, "not-a-date"),
+                json_response(response),
+            ],
+        ),
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        assert fetch_search_page("buyer-country = POL") == response
+
+    mocked_sleep.assert_called_once_with(1.0)
+
+
+def test_long_retry_after_stops_without_retrying_early() -> None:
+    with (
+        patch(
+            "tender_intelligence.ted_client.urlopen",
+            side_effect=http_error(429, "120"),
+        ) as mocked_urlopen,
+        patch("tender_intelligence.ted_client.time.sleep") as mocked_sleep,
+    ):
+        with pytest.raises(HTTPError) as caught:
+            fetch_search_page("buyer-country = POL")
+
+    assert caught.value.code == 429
+    mocked_urlopen.assert_called_once()
+    mocked_sleep.assert_not_called()
