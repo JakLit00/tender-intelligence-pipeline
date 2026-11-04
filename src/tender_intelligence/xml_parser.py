@@ -56,7 +56,10 @@ def read_text(element: ET.Element, path: str) -> str | None:
 
 def parse_notice_metadata(xml_bytes: bytes) -> dict[str, str | None]:
     """Extract raw metadata from an eForms contract notice."""
-    root = ET.fromstring(xml_bytes)
+    try:
+        root = ET.fromstring(xml_bytes)
+    except LookupError as exc:
+        raise ValueError("Unsupported XML encoding") from exc
 
     if root.tag != CONTRACT_NOTICE_TAG:
         raise ValueError(f"Unsupported XML root: {root.tag}")
@@ -98,7 +101,10 @@ def parse_notice_metadata(xml_bytes: bytes) -> dict[str, str | None]:
 
 def parse_notice_lots(xml_bytes: bytes) -> list[dict[str, str | None]]:
     """Extract lot identifiers and raw submission deadlines."""
-    root = ET.fromstring(xml_bytes)
+    try:
+        root = ET.fromstring(xml_bytes)
+    except LookupError as exc:
+        raise ValueError("Unsupported XML encoding") from exc
 
     if root.tag != CONTRACT_NOTICE_TAG:
         raise ValueError(f"Unsupported XML root: {root.tag}")

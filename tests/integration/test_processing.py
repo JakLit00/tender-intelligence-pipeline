@@ -242,3 +242,31 @@ def test_database_failure_rolls_back_staging_and_status(
         read_status(db_connection, raw_notice),
         read_staging(db_connection, raw_notice),
     ) == before
+
+def test_unsupported_xml_encoding_records_failure(
+    db_connection: psycopg.Connection,
+    raw_notice: str,
+) -> None:
+    xml_content = (
+        b'<?xml version="1.0" encoding="UNKNOWN"?>'
+        b"<ContractNotice/>"
+    )
+
+    db_connection.execute(
+        """
+        UPDATE raw.notices
+        SET xml_content = %s
+        WHERE publication_number = %s
+        """,
+        (xml_content, raw_notice),
+    )
+
+    assert process_notice(db_connection, raw_notice) == "failed"
+
+    status, processed_at, last_error = read_status(
+        db_connection, raw_notice
+    )
+    assert status == "failed"
+    assert processed_at is None
+    assert last_error == "ValueError: Unsupported XML encoding"
+    assert read_staging(db_connection, raw_notice) == ([], [])
