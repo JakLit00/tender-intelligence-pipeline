@@ -1,13 +1,16 @@
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from tender_intelligence.normalization import normalize_publication_number
 from tender_intelligence.models import PreparedNoticeBundle
 
 from dataclasses import asdict
 
-import psycopg
+from psycopg import Connection
 from psycopg.types.json import Jsonb
+
+import psycopg
+
 
 
 
@@ -169,33 +172,48 @@ def save_notice_xml(
     return True
 
 def register_notice(
-    conn: psycopg.Connection,
+    connection: Connection,
     *,
     publication_number: str,
     publication_date: date,
     search_metadata: dict[str, Any],
+    discovery_source: Literal["scope_search", "predecessor"] = "scope_search",
 ) -> None:
-    """Register a discovered publication without resetting XML processing."""
-    publication_number = normalize_publication_number(publication_number)
+    if discovery_source not in ("scope_search", "predecessor"):
+        raise ValueError(f"Unsupported discovery source: {discovery_source}")
 
-    with conn.transaction():
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO raw.notices (
-                    publication_number,
-                    publication_date,
-                    search_metadata
-                )
-                VALUES (%s, %s, %s)
-                ON CONFLICT (publication_number) DO UPDATE SET
-                    publication_date = EXCLUDED.publication_date,
-                    search_metadata = EXCLUDED.search_metadata,
-                    last_seen_at = clock_timestamp()
-                """,
-                (
-                    publication_number,
-                    publication_date,
-                    Jsonb(search_metadata),
-                ),
+    normalized_number = normalize_publication_number(publication_number)
+
+    with connection.transaction():
+        connection.execute(
+            """
+            INSERT INTO raw.notices (
+                publication_number,
+                publication_date,
+                search_metadata,
+                discovered_by_scope_search,
+                discovered_as_predecessor
             )
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (publication_number) DO UPDATE
+            SET
+                publication_date = EXCLUDED.publication_date,
+                search_metadata = EXCLUDED.search_metadata,
+                last_seen_at = clock_timestamp(),
+                discovered_by_scope_search = (
+                    raw.notices.discovered_by_scope_search
+                    OR EXCLUDED.discovered_by_scope_search
+                ),
+                discovered_as_predecessor = (
+                    raw.notices.discovered_as_predecessor
+                    OR EXCLUDED.discovered_as_predecessor
+                )
+            """,
+            (
+                normalized_number,
+                publication_date,
+                Jsonb(search_metadata),
+                discovery_source == "scope_search",
+                discovery_source == "predecessor",
+            ),
+        )
