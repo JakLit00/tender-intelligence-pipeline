@@ -4,6 +4,7 @@ import psycopg
 import pytest
 
 from tender_intelligence.run_tracking import (
+    fail_run,
     finish_run,
     link_run_notice,
     record_notice_outcome,
@@ -448,3 +449,131 @@ def test_cannot_finish_run_twice(
 
     with pytest.raises(ValueError, match="already finished"):
         finish_run(db_connection, run_id=run_id)
+
+@pytest.mark.parametrize(
+    ("outcome", "notice_error"),
+    [
+        ("pending", None),
+        ("processed", None),
+        ("failed", "Invalid XML"),
+    ],
+)
+def test_failing_run_preserves_publication_outcome(
+    db_connection: psycopg.Connection,
+    linked_notice_run: int,
+    outcome: str,
+    notice_error: str | None,
+) -> None:
+    if outcome != "pending":
+        record_notice_outcome(
+            db_connection,
+            run_id=linked_notice_run,
+            publication_number="722762-2026",
+            outcome=outcome,
+            error_message=notice_error,
+        )
+
+    fail_run(
+        db_connection,
+        run_id=linked_notice_run,
+        error_message="TED search unavailable",
+    )
+
+    run = db_connection.execute(
+        """
+        SELECT status, finished_at >= started_at, error_message
+        FROM ops.pipeline_runs
+        WHERE run_id = %s
+        """,
+        (linked_notice_run,),
+    ).fetchone()
+    assert run == ("failed", True, "TED search unavailable")
+
+    notice = db_connection.execute(
+        """
+        SELECT outcome, error_message
+        FROM ops.run_notices
+        WHERE run_id = %s AND publication_number = %s
+        """,
+        (linked_notice_run, "722762-2026"),
+    ).fetchone()
+    assert notice == (outcome, notice_error)
+
+
+def test_can_fail_run_before_any_publications_are_linked(
+    db_connection: psycopg.Connection,
+) -> None:
+    run_id = start_run(
+        db_connection,
+        run_mode="backfill",
+        date_from=date(2026, 10, 20),
+        date_to=date(2026, 10, 29),
+    )
+
+    fail_run(
+        db_connection,
+        run_id=run_id,
+        error_message="Search request failed",
+    )
+
+    row = db_connection.execute(
+        """
+        SELECT status, finished_at IS NOT NULL
+        FROM ops.pipeline_runs
+        WHERE run_id = %s
+        """,
+        (run_id,),
+    ).fetchone()
+    assert row == ("failed", True)
+
+
+def test_rejects_empty_run_error(
+    db_connection: psycopg.Connection,
+    linked_notice_run: int,
+) -> None:
+    with pytest.raises(ValueError, match="requires an error message"):
+        fail_run(
+            db_connection,
+            run_id=linked_notice_run,
+            error_message=" ",
+        )
+
+    row = db_connection.execute(
+        """
+        SELECT status, finished_at
+        FROM ops.pipeline_runs
+        WHERE run_id = %s
+        """,
+        (linked_notice_run,),
+    ).fetchone()
+    assert row == ("running", None)
+
+
+def test_cannot_fail_finished_run(
+    db_connection: psycopg.Connection,
+) -> None:
+    run_id = start_run(
+        db_connection,
+        run_mode="backfill",
+        date_from=date(2026, 10, 20),
+        date_to=date(2026, 10, 29),
+    )
+    finish_run(db_connection, run_id=run_id)
+
+    with pytest.raises(ValueError, match="already finished"):
+        fail_run(
+            db_connection,
+            run_id=run_id,
+            error_message="Late error",
+        )
+
+
+def test_cannot_fail_missing_run(
+    db_connection: psycopg.Connection,
+) -> None:
+    with pytest.raises(ValueError, match="Pipeline run not found"):
+        fail_run(
+            db_connection,
+            run_id=-1,
+            error_message="Search request failed",
+        )

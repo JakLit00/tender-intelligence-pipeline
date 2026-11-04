@@ -229,3 +229,45 @@ def finish_run(
             )
 
     return status
+
+def fail_run(
+    conn: psycopg.Connection,
+    *,
+    run_id: int,
+    error_message: str,
+) -> None:
+    """Mark an interrupted run as failed, preserving publication outcomes."""
+    if not error_message.strip():
+        raise ValueError("Failed run requires an error message")
+
+    error_message = error_message.strip().replace("\x00", "\\x00")
+
+    with conn.transaction():
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT status
+                FROM ops.pipeline_runs
+                WHERE run_id = %s
+                FOR UPDATE
+                """,
+                (run_id,),
+            )
+            row = cursor.fetchone()
+
+            if row is None:
+                raise ValueError(f"Pipeline run not found: {run_id}")
+
+            if row[0] != "running":
+                raise ValueError(f"Pipeline run is already finished: {run_id}")
+
+            cursor.execute(
+                """
+                UPDATE ops.pipeline_runs
+                SET status = 'failed',
+                    finished_at = clock_timestamp(),
+                    error_message = %s
+                WHERE run_id = %s
+                """,
+                (error_message, run_id),
+            )
