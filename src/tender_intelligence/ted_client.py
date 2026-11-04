@@ -137,3 +137,80 @@ def fetch_search_page(
         raise ValueError("Expected an iteration token string or null")
 
     return result
+
+def fetch_all_notices(
+    query: str,
+    *,
+    page_size: int = 100,
+) -> list[dict[str, Any]]:
+    """Collect all search results, rejecting incomplete or repeated pages."""
+    notices: list[dict[str, Any]] = []
+    seen_publications: set[str] = set()
+    seen_tokens: set[str] = set()
+    iteration_token = None
+    expected_total = None
+
+    while True:
+        page = fetch_search_page(
+            query,
+            iteration_token=iteration_token,
+            limit=page_size,
+        )
+
+        total_count = page["totalNoticeCount"]
+
+        if expected_total is None:
+            expected_total = total_count
+        elif total_count != expected_total:
+            raise ValueError(
+                "TED result count changed during pagination"
+            )
+
+        page_notices = page["notices"]
+
+        for notice in page_notices:
+            publication_number = notice.get("publication-number")
+
+            if (
+                not isinstance(publication_number, str)
+                or not publication_number.strip()
+            ):
+                raise ValueError(
+                    "Missing or invalid publication number in search results"
+                )
+
+            if publication_number in seen_publications:
+                raise ValueError(
+                    f"Repeated publication during pagination: "
+                    f"{publication_number}"
+                )
+
+            seen_publications.add(publication_number)
+            notices.append(notice)
+
+        if len(notices) > expected_total:
+            raise ValueError(
+                "Received more notices than the reported total"
+            )
+
+        # A final response may still carry a token; use the count to finish.
+        if len(notices) == expected_total:
+            return notices
+
+        if not page_notices:
+            raise ValueError(
+                "Received an empty page before collecting all notices"
+            )
+
+        next_token = page.get("iterationNextToken")
+
+        if not isinstance(next_token, str) or not next_token.strip():
+            raise ValueError(
+                "Missing iteration token before collecting all notices"
+            )
+
+        if next_token in seen_tokens:
+            raise ValueError("Repeated iteration token during pagination")
+
+        seen_tokens.add(next_token)
+        iteration_token = next_token
