@@ -24,6 +24,9 @@ XML_TIME_PATTERN = re.compile(
     r"(?:Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?"
 )
 
+class DeadlineTimezoneConflict(ValueError):
+    """The deadline date and time specify different UTC offsets."""
+
 def normalize_publication_number(value: str) -> str:
     """Normalize a TED publication number to an unpadded number-year."""
     match = PUBLICATION_NUMBER_PATTERN.fullmatch(value.strip())
@@ -177,7 +180,9 @@ def normalize_submission_deadline(
         and time_timezone is not None
         and date_timezone != time_timezone
     ):
-        raise ValueError("Conflicting deadline timezone offsets")
+        raise DeadlineTimezoneConflict(
+            "Conflicting deadline timezone offsets"
+        )
 
     deadline_timezone = time_timezone or date_timezone
 

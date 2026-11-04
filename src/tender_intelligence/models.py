@@ -35,6 +35,9 @@ class PreparedLot:
     submission_deadline_time_raw: str | None
     submission_deadline_local_date: date | None
     submission_deadline_at: datetime | None
+    submission_deadline_quality_issue: (
+        Literal["conflicting_timezone_offsets"] | None
+    ) = None
 
 
 @dataclass(frozen=True)

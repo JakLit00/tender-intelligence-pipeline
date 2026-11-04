@@ -14,6 +14,7 @@ from tender_intelligence.normalization import (
     normalize_publication_number,
     normalize_submission_deadline,
     normalize_xml_date,
+    DeadlineTimezoneConflict,
 )
 from tender_intelligence.xml_parser import (
     parse_notice_lots,
@@ -116,10 +117,23 @@ def prepare_notice(
     lots = []
 
     for raw_lot in parse_notice_lots(xml_content):
-        local_date, deadline_at = normalize_submission_deadline(
-            raw_lot["submission_deadline_date_raw"],
-            raw_lot["submission_deadline_time_raw"],
-        )
+        quality_issue = None
+
+        try:
+            local_date, deadline_at = normalize_submission_deadline(
+                raw_lot["submission_deadline_date_raw"],
+                raw_lot["submission_deadline_time_raw"],
+            )
+        except DeadlineTimezoneConflict:
+            # Preserve the source day without inferring an uncertain UTC instant.
+            local_date = normalize_xml_date(
+                _required_text(
+                    raw_lot["submission_deadline_date_raw"],
+                    "submission_deadline_date_raw",
+                )
+            )
+            deadline_at = None
+            quality_issue = "conflicting_timezone_offsets"
 
         lots.append(
             PreparedLot(
@@ -133,6 +147,7 @@ def prepare_notice(
                 ),
                 submission_deadline_local_date=local_date,
                 submission_deadline_at=deadline_at,
+                submission_deadline_quality_issue=quality_issue,
             )
         )
 

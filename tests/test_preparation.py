@@ -132,14 +132,28 @@ def test_preserves_unresolved_reference(notice_xml: bytes) -> None:
     assert notice.previous_notice_version is None
 
 
-def test_rejects_conflicting_deadline_offsets(notice_xml: bytes) -> None:
+def test_preserves_conflicting_deadline_as_quality_issue(
+    notice_xml: bytes,
+) -> None:
     xml_content = notice_xml.replace(
-        b"09:00:00+01:00",
-        b"09:00:00+02:00",
+        b"2026-11-03+01:00",
+        b"2026-11-03Z",
     )
 
-    with pytest.raises(ValueError, match="Conflicting deadline timezone offsets"):
-        prepare_notice(
-            xml_content,
-            expected_publication_number="722762-2026",
-        )
+    bundle = prepare_notice(
+        xml_content,
+        expected_publication_number="722762-2026",
+    )
+
+    assert bundle.notice.publication_number == "722762-2026"
+    assert len(bundle.lots) == 1
+
+    lot = bundle.lots[0]
+    assert lot.submission_deadline_date_raw == "2026-11-03Z"
+    assert lot.submission_deadline_time_raw == "09:00:00+01:00"
+    assert lot.submission_deadline_local_date == date(2026, 11, 3)
+    assert lot.submission_deadline_at is None
+    assert (
+        lot.submission_deadline_quality_issue
+        == "conflicting_timezone_offsets"
+    )

@@ -270,3 +270,53 @@ def test_unsupported_xml_encoding_records_failure(
     assert processed_at is None
     assert last_error == "ValueError: Unsupported XML encoding"
     assert read_staging(db_connection, raw_notice) == ([], [])
+
+def test_processes_notice_with_conflicting_deadline_offsets(
+    db_connection: psycopg.Connection,
+    raw_notice: str,
+    notice_xml: bytes,
+) -> None:
+    xml_content = notice_xml.replace(
+        b"2026-11-03+01:00",
+        b"2026-11-03Z",
+    )
+
+    db_connection.execute(
+        """
+        UPDATE raw.notices
+        SET xml_content = %s
+        WHERE publication_number = %s
+        """,
+        (xml_content, raw_notice),
+    )
+
+    assert process_notice(db_connection, raw_notice) == "processed"
+
+    status, processed_at, last_error = read_status(
+        db_connection, raw_notice
+    )
+    assert status == "succeeded"
+    assert processed_at is not None
+    assert last_error is None
+
+    row = db_connection.execute(
+        """
+        SELECT
+            submission_deadline_date_raw,
+            submission_deadline_time_raw,
+            submission_deadline_local_date::text,
+            submission_deadline_at,
+            submission_deadline_quality_issue
+        FROM staging.notice_lots
+        WHERE publication_number = %s AND lot_id = %s
+        """,
+        (raw_notice, "LOT-0001"),
+    ).fetchone()
+
+    assert row == (
+        "2026-11-03Z",
+        "09:00:00+01:00",
+        "2026-11-03",
+        None,
+        "conflicting_timezone_offsets",
+    )

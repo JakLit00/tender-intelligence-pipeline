@@ -63,7 +63,8 @@ INSERT INTO staging.notice_lots (
     submission_deadline_date_raw,
     submission_deadline_time_raw,
     submission_deadline_local_date,
-    submission_deadline_at
+    submission_deadline_at,
+    submission_deadline_quality_issue
 )
 VALUES (
     %(publication_number)s,
@@ -71,7 +72,8 @@ VALUES (
     %(submission_deadline_date_raw)s,
     %(submission_deadline_time_raw)s,
     %(submission_deadline_local_date)s,
-    %(submission_deadline_at)s
+    %(submission_deadline_at)s,
+    %(submission_deadline_quality_issue)s
 )
 """
 
