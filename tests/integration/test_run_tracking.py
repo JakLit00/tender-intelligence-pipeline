@@ -577,3 +577,28 @@ def test_cannot_fail_missing_run(
             run_id=-1,
             error_message="Search request failed",
         )
+
+def test_starts_history_run(db_connection):
+    run_id = start_run(
+        db_connection,
+        run_mode="history",
+        date_from=date(2026, 10, 20),
+        date_to=date(2026, 10, 29),
+    )
+
+    row = db_connection.execute(
+        """
+        SELECT run_mode, date_from, date_to, status, finished_at
+        FROM ops.pipeline_runs
+        WHERE run_id = %s
+        """,
+        (run_id,),
+    ).fetchone()
+
+    assert row == (
+        "history",
+        date(2026, 10, 20),
+        date(2026, 10, 29),
+        "running",
+        None,
+    )

@@ -8,6 +8,14 @@ from tender_intelligence.predecessors import (
 )
 from tender_intelligence.preparation import prepare_notice
 
+from dataclasses import replace
+
+from tender_intelligence.predecessors import (
+    find_missing_predecessor_publications,
+)
+
+from tender_intelligence.models import PreparedNoticeBundle
+from tender_intelligence.storage import register_notice, save_prepared_notice
 
 PUBLICATION_NUMBER = "722762-2026"
 
@@ -131,3 +139,80 @@ def test_rolls_back_registration_when_processing_raises(
     ).fetchone()
 
     assert row == (0,)
+
+@pytest.fixture(params=["publication_number", "notice_version"])
+def predecessor_chain(request, downloaded_predecessor):
+    previous_id = "df078ce7-100b-4415-aad6-2db2b053ef77"
+    current_notice = downloaded_predecessor.bundle.notice
+
+    previous_notice = replace(
+        current_notice,
+        publication_number="706539-2026",
+        notice_id=previous_id,
+        notice_version="02",
+        reference_type="missing",
+        changed_notice_identifier_raw=None,
+        previous_publication_number=None,
+        previous_notice_id=None,
+        previous_notice_version=None,
+        change_reason_code=None,
+    )
+
+    if request.param == "notice_version":
+        current_notice = replace(
+            current_notice,
+            reference_type="notice_version",
+            changed_notice_identifier_raw=f"{previous_id}-02",
+            previous_publication_number=None,
+            previous_notice_id=previous_id,
+            previous_notice_version="02",
+        )
+
+    return current_notice, previous_notice
+
+
+def test_missing_predecessor_list_is_empty_for_empty_database(db_connection):
+    assert find_missing_predecessor_publications(db_connection) == []
+
+
+def test_finds_notice_with_missing_predecessor(
+    db_connection,
+    predecessor_chain,
+):
+    current, _ = predecessor_chain
+
+    register_notice(
+        db_connection,
+        publication_number=current.publication_number,
+        publication_date=current.publication_date,
+        search_metadata={},
+    )
+    save_prepared_notice(
+        db_connection,
+        PreparedNoticeBundle(notice=current, lots=()),
+    )
+
+    assert find_missing_predecessor_publications(db_connection) == [
+        current.publication_number
+    ]
+
+
+def test_excludes_notice_after_predecessor_is_stored(
+    db_connection,
+    predecessor_chain,
+):
+    current, previous = predecessor_chain
+
+    for notice in (current, previous):
+        register_notice(
+            db_connection,
+            publication_number=notice.publication_number,
+            publication_date=notice.publication_date,
+            search_metadata={},
+        )
+        save_prepared_notice(
+            db_connection,
+            PreparedNoticeBundle(notice=notice, lots=()),
+        )
+
+    assert find_missing_predecessor_publications(db_connection) == []

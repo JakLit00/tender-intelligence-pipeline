@@ -153,3 +153,36 @@ def persist_predecessor(
             predecessor.xml_content,
         )
         return process_notice(connection, notice.publication_number)
+
+def find_missing_predecessor_publications(
+    connection: Connection,
+) -> list[str]:
+    rows = connection.execute(
+        """
+        SELECT current_notice.publication_number
+        FROM staging.notices AS current_notice
+        WHERE current_notice.reference_type IN (
+            'publication_number',
+            'notice_version'
+        )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM staging.notices AS predecessor
+              WHERE (
+                  current_notice.reference_type = 'publication_number'
+                  AND predecessor.publication_number
+                      = current_notice.previous_publication_number
+              )
+              OR (
+                  current_notice.reference_type = 'notice_version'
+                  AND predecessor.notice_id
+                      = current_notice.previous_notice_id
+                  AND predecessor.notice_version
+                      = current_notice.previous_notice_version
+              )
+          )
+        ORDER BY current_notice.publication_number
+        """
+    ).fetchall()
+
+    return [row[0] for row in rows]

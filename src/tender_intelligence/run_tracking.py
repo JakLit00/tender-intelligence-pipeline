@@ -5,7 +5,7 @@ from tender_intelligence.normalization import normalize_publication_number
 import psycopg
 
 
-RunMode = Literal["backfill", "incremental", "retry"]
+RunMode = Literal["backfill", "incremental", "retry", "history"]
 
 
 def start_run(
@@ -16,7 +16,7 @@ def start_run(
     date_to: date,
 ) -> int:
     """Register a pipeline run and return its generated identifier."""
-    if run_mode not in ("backfill", "incremental", "retry"):
+    if run_mode not in ("backfill", "incremental", "retry", "history"):
         raise ValueError(f"Unsupported run mode: {run_mode!r}")
 
     if date_to < date_from:
