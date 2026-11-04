@@ -1,8 +1,15 @@
+from datetime import date
+from typing import Any
+
+from tender_intelligence.normalization import normalize_publication_number
+from tender_intelligence.models import PreparedNoticeBundle
+
 from dataclasses import asdict
 
 import psycopg
+from psycopg.types.json import Jsonb
 
-from tender_intelligence.models import PreparedNoticeBundle
+
 
 
 UPSERT_NOTICE_SQL = """
@@ -158,3 +165,35 @@ def save_notice_xml(
             )
 
     return True
+
+def register_notice(
+    conn: psycopg.Connection,
+    *,
+    publication_number: str,
+    publication_date: date,
+    search_metadata: dict[str, Any],
+) -> None:
+    """Register a discovered publication without resetting XML processing."""
+    publication_number = normalize_publication_number(publication_number)
+
+    with conn.transaction():
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO raw.notices (
+                    publication_number,
+                    publication_date,
+                    search_metadata
+                )
+                VALUES (%s, %s, %s)
+                ON CONFLICT (publication_number) DO UPDATE SET
+                    publication_date = EXCLUDED.publication_date,
+                    search_metadata = EXCLUDED.search_metadata,
+                    last_seen_at = clock_timestamp()
+                """,
+                (
+                    publication_number,
+                    publication_date,
+                    Jsonb(search_metadata),
+                ),
+            )
