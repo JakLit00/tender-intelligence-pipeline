@@ -21,32 +21,40 @@ from tender_intelligence.ted_client import (
     fetch_notice_xml,
 )
 
+from typing import Literal
+
+from tender_intelligence.incremental import (
+    calculate_incremental_window,
+    get_last_successful_date,
+)
+
 
 logger = logging.getLogger(__name__)
 
 
-def run_backfill(
+def _run_date_range(
     conn: psycopg.Connection,
     *,
     date_from: date,
     date_to: date,
+    run_mode: Literal["backfill", "incremental"],
 ) -> int:
-    """Run a historical search and process its publications."""
+    """Search and process publications within an explicit date range."""
     if (
         not conn.autocommit
         or conn.info.transaction_status != TransactionStatus.IDLE
     ):
         raise ValueError(
-            "Backfill requires an idle connection with autocommit enabled"
+            "Date-range ingestion requires an idle connection with autocommit enabled"
         )
 
     run_id = start_run(
         conn,
-        run_mode="backfill",
+        run_mode=run_mode,
         date_from=date_from,
         date_to=date_to,
     )
-    logger.info("Started backfill run %s", run_id)
+    logger.info("Started %s run %s", run_mode, run_id)
 
     try:
         query = (
@@ -147,3 +155,64 @@ def run_backfill(
 
     logger.info("Finished run %s with status %s", run_id, status)
     return run_id
+
+def run_backfill(
+    conn: psycopg.Connection,
+    *,
+    date_from: date,
+    date_to: date,
+) -> int:
+    """Run a historical search and process its publications."""
+    return _run_date_range(
+        conn,
+        date_from=date_from,
+        date_to=date_to,
+        run_mode="backfill",
+    )
+
+def run_incremental(
+    conn: psycopg.Connection,
+    *,
+    initial_date: date,
+    today: date,
+    overlap_days: int = 3,
+) -> int | None:
+    """Ingest complete days with an overlap of previously covered dates."""
+    if (
+        not conn.autocommit
+        or conn.info.transaction_status != TransactionStatus.IDLE
+    ):
+        raise ValueError(
+            "Incremental ingestion requires an idle connection "
+            "with autocommit enabled"
+        )
+
+    last_successful_date = get_last_successful_date(
+        conn,
+        initial_date=initial_date,
+    )
+    window = calculate_incremental_window(
+        initial_date=initial_date,
+        last_successful_date=last_successful_date,
+        today=today,
+        overlap_days=overlap_days,
+    )
+
+    if window is None:
+        logger.info("No complete days available for incremental ingestion")
+        return None
+
+    date_from, date_to = window
+    logger.info(
+        "Incremental window: %s to %s; previous coverage: %s",
+        date_from,
+        date_to,
+        last_successful_date,
+    )
+
+    return _run_date_range(
+        conn,
+        date_from=date_from,
+        date_to=date_to,
+        run_mode="incremental",
+    )
