@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.error import HTTPError
-
+from tender_intelligence.normalization import normalize_publication_number
 
 SEARCH_URL = "https://api.ted.europa.eu/v3/notices/search"
 
@@ -48,11 +48,11 @@ def _retry_delay(value: str | None, *, attempt: int) -> float:
     )
 
 
-def _request_search_json(request: Request) -> Any:
+def _request_bytes(request: Request) -> bytes:
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             with urlopen(request, timeout=30) as response:
-                return json.load(response)
+                return response.read()
         except HTTPError as exc:
             if (
                 exc.code not in RETRYABLE_HTTP_CODES
@@ -112,7 +112,7 @@ def fetch_search_page(
         method="POST",
     )
 
-    result = _request_search_json(request)
+    result = json.loads(_request_bytes(request))
 
     if not isinstance(result, dict):
         raise ValueError("Expected a JSON object from TED")
@@ -214,3 +214,25 @@ def fetch_all_notices(
 
         seen_tokens.add(next_token)
         iteration_token = next_token
+
+def fetch_notice_xml(publication_number: str) -> bytes:
+    """Download the original XML bytes for a TED publication."""
+    publication_number = normalize_publication_number(publication_number)
+
+    request = Request(
+        f"https://ted.europa.eu/en/notice/{publication_number}/xml",
+        headers={
+            "Accept": "application/xml",
+            "User-Agent": "tender-intelligence-pipeline/0.1",
+        },
+        method="GET",
+    )
+
+    xml_content = _request_bytes(request)
+
+    if not xml_content.strip():
+        raise ValueError(
+            f"TED returned an empty XML response: {publication_number}"
+        )
+
+    return xml_content
