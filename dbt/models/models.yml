@@ -90,3 +90,42 @@ models:
       - name: extended_lot_observations
         data_tests:
           - not_null
+
+  - name: int_notice_business_context
+    description: "Polish notice titles, buyer names and source links for publications in the analysis scope."
+    columns:
+      - name: publication_number
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('int_scope_notices')
+                field: publication_number
+
+      - name: notice_title
+        description: "Polish notice title supplied by TED."
+
+      - name: buyer_names
+        description: "Distinct buyer names, sorted and separated by semicolons."
+
+      - name: notice_url
+        description: "Link to the Polish notice page supplied by TED."
+
+  - name: mart_lot_deadline_changes
+    description: "Lot deadline change observations enriched with notice titles, buyers and source links."
+    columns:
+      - name: publication_number
+        data_tests:
+          - not_null
+
+      - name: lot_id
+        data_tests:
+          - not_null
+
+      - name: deadline_change_status
+        data_tests:
+          - not_null
+
+      - name: deadline_change_hours
+        description: "Elapsed hours between the current and previous deadlines; positive for extensions."
