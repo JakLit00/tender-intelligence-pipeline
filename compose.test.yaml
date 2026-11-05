@@ -5,6 +5,7 @@ services:
       POSTGRES_USER: tender_test_admin
       POSTGRES_PASSWORD: local_test_admin_password
       APP_DB_PASSWORD: local_test_app_password
+      DBT_DB_PASSWORD: local_test_dbt_password
     ports: !override
       - "127.0.0.1:5435:5432"
     volumes: !override

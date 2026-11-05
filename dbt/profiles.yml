@@ -3,11 +3,22 @@ tender_intelligence:
   outputs:
     dev:
       type: postgres
-      host: "{{ env_var('APP_DB_HOST') }}"
-      port: "{{ env_var('APP_DB_PORT') | int }}"
-      dbname: "{{ env_var('APP_DB_NAME') }}"
+      host: "{{ env_var('APP_DB_HOST', '127.0.0.1') }}"
+      port: "{{ env_var('APP_DB_PORT', '5434') | int }}"
+      dbname: "{{ env_var('APP_DB_NAME', 'tender_intelligence') }}"
       user: tender_dbt
-      password: "{{ env_var('DBT_DB_PASSWORD') }}"
+      password: "{{ env_var('DBT_DB_PASSWORD', '') }}"
+      schema: analytics
+      threads: 2
+      connect_timeout: 10
+
+    test:
+      type: postgres
+      host: "127.0.0.1"
+      port: 5435
+      dbname: tender_intelligence_test
+      user: tender_dbt
+      password: "{{ env_var('DBT_TEST_DB_PASSWORD', '') }}"
       schema: analytics
       threads: 2
       connect_timeout: 10

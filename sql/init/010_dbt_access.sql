@@ -1,3 +1,6 @@
+\set ON_ERROR_STOP on
+\getenv dbt_password DBT_DB_PASSWORD
+
 BEGIN;
 
 CREATE ROLE tender_dbt
@@ -6,6 +9,13 @@ CREATE ROLE tender_dbt
     NOCREATEDB
     NOCREATEROLE
     NOREPLICATION;
+
+-- Quote the password as a SQL literal without printing it as a result.
+SELECT format(
+    'ALTER ROLE tender_dbt PASSWORD %L',
+    :'dbt_password'
+)
+\gexec
 
 CREATE SCHEMA analytics AUTHORIZATION CURRENT_USER;
 

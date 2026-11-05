@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+      DBT_DB_PASSWORD: ${DBT_DB_PASSWORD:?Set DBT_DB_PASSWORD in .env}
     ports:
       - "127.0.0.1:5434:5432"
     volumes:
