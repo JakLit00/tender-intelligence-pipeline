@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: int_scope_notices
+    description: "Successfully prepared notices discovered by the scope search."
+    columns:
+      - name: publication_number
+        data_tests:
+          - not_null
+          - unique
+
+      - name: publication_date
+        data_tests:
+          - not_null
+
+  - name: int_notice_predecessors
+    description: "Predecessor matching results for notices in the analysis scope."
+    columns:
+      - name: publication_number
+        data_tests:
+          - not_null
+          - unique
+
+      - name: match_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - no_reference
+                  - unsupported_reference
+                  - not_found
+                  - ambiguous
+                  - self_reference
+                  - procedure_mismatch
+                  - matched
+
+  - name: int_lot_deadline_pairs
+    description: "Current lots paired with predecessor lots by lot identifier."
+    columns:
+      - name: publication_number
+        data_tests:
+          - not_null
+
+      - name: lot_id
+        data_tests:
+          - not_null
+
+      - name: predecessor_lot_found
+        data_tests:
+          - not_null
+
+  - name: fct_lot_deadline_changes
+    description: "Deadline changes between current lots and their direct predecessors."
+    columns:
+      - name: publication_number
+        data_tests:
+          - not_null
+
+      - name: lot_id
+        data_tests:
+          - not_null
+
+      - name: deadline_change_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - no_reference
+                  - unresolved_predecessor
+                  - missing_predecessor_lot
+                  - quality_issue
+                  - missing_exact_deadline
+                  - extended
+                  - shortened
+                  - unchanged
+
+  - name: mart_deadline_change_summary
+    description: "Aggregate deadline-change metrics at notice-lot observation level."
+    columns:
+      - name: total_lot_observations
+        data_tests:
+          - not_null
+
+      - name: comparable_lot_observations
+        data_tests:
+          - not_null
+
+      - name: extended_lot_observations
+        data_tests:
+          - not_null

@@ -1,0 +1,94 @@
+version: 2
+
+unit_tests:
+  - name: classify_deadline_changes
+    model: fct_lot_deadline_changes
+    given:
+      - input: ref('int_lot_deadline_pairs')
+        rows:
+          - publication_number: "extended"
+            predecessor_match_status: matched
+            predecessor_lot_found: true
+            previous_deadline_at: "2026-10-22 09:00:00+02:00"
+            current_deadline_at: "2026-11-03 09:00:00+01:00"
+
+          - publication_number: "shortened"
+            predecessor_match_status: matched
+            predecessor_lot_found: true
+            previous_deadline_at: "2026-11-05 09:00:00+01:00"
+            current_deadline_at: "2026-11-04 09:00:00+01:00"
+
+          - publication_number: "unchanged"
+            predecessor_match_status: matched
+            predecessor_lot_found: true
+            previous_deadline_at: "2026-11-03 09:00:00+01:00"
+            current_deadline_at: "2026-11-03 08:00:00+00:00"
+
+          - publication_number: "missing_time"
+            predecessor_match_status: matched
+            predecessor_lot_found: true
+            previous_deadline_at: "2026-11-03 09:00:00+01:00"
+            current_deadline_at: null
+
+          - publication_number: "quality_problem"
+            predecessor_match_status: matched
+            predecessor_lot_found: true
+            current_quality_issue: conflicting_timezone_offsets
+            current_deadline_at: null
+            previous_deadline_at: "2026-11-03 09:00:00+01:00"
+
+          - publication_number: "first_notice"
+            predecessor_match_status: no_reference
+            predecessor_lot_found: false
+
+          - publication_number: "missing_notice"
+            predecessor_match_status: not_found
+            predecessor_lot_found: false
+
+          - publication_number: "missing_lot"
+            predecessor_match_status: matched
+            predecessor_lot_found: false
+
+          - publication_number: "fractional_extension"
+            predecessor_match_status: matched
+            predecessor_lot_found: true
+            previous_deadline_at: "2026-11-03 09:00:00+01:00"
+            current_deadline_at: "2026-11-03 10:30:00+01:00"  
+
+    expect:
+      rows:
+        - publication_number: "extended"
+          deadline_change_status: extended
+          deadline_change_hours: 289
+
+        - publication_number: "shortened"
+          deadline_change_status: shortened
+          deadline_change_hours: -24
+
+        - publication_number: "unchanged"
+          deadline_change_status: unchanged
+          deadline_change_hours: 0
+
+        - publication_number: "missing_time"
+          deadline_change_status: missing_exact_deadline
+          deadline_change_hours: null
+
+        - publication_number: "quality_problem"
+          deadline_change_status: quality_issue
+          deadline_change_hours: null
+
+        - publication_number: "first_notice"
+          deadline_change_status: no_reference
+          deadline_change_hours: null
+
+        - publication_number: "missing_notice"
+          deadline_change_status: unresolved_predecessor
+          deadline_change_hours: null
+
+        - publication_number: "missing_lot"
+          deadline_change_status: missing_predecessor_lot
+          deadline_change_hours: null
+
+        - publication_number: "fractional_extension"
+          deadline_change_status: extended
+          deadline_change_hours: 1.5

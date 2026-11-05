@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: ingestion
+    schema: raw
+    tables:
+      - name: notices
+
+  - name: prepared
+    schema: staging
+    tables:
+      - name: notices
+      - name: notice_lots

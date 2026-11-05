@@ -5,6 +5,7 @@
 
 # Python virtual environments
 .venv/
+.venv-dbt/
 venv/
 
 # Python bytecode and tool caches
@@ -27,6 +28,7 @@ logs/
 # dbt generated files and installed packages
 target/
 dbt_packages/
+.user.yml
 
 # Editor and operating system files
 .vscode/

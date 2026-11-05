@@ -1,0 +1,15 @@
+name: tender_intelligence
+version: "1.0.0"
+config-version: 2
+
+profile: tender_intelligence
+
+model-paths: ["models"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  tender_intelligence:
+    +materialized: view
