@@ -141,3 +141,8 @@ The script pushes assets to `gh-pages`; it does not configure GitHub Pages. Serv
 A row represents a **publication–lot observation**, not a unique tender or an active opportunity. The extension rate counts extensions among comparable deadline pairs; missing and unreliable timestamps are excluded from that denominator and reported separately. History-only publications support comparisons but do not enlarge the selected reporting cohort.
 
 Read [business logic](docs/business-logic.md) for scope, formulas and limitations, and [development notes](docs/development-notes.md) for implementation decisions. Always verify bidding requirements and current deadlines in the original TED notice and procurement documents.
+
+## License
+
+Project code is licensed under the [MIT License](LICENSE).
+TED source data remains subject to its applicable reuse terms.
