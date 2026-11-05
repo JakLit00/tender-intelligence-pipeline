@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   tests:
-    name: Python and dbt tests
+    name: Python, dbt and dashboard tests
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -26,12 +26,28 @@ jobs:
       APP_DB_PASSWORD: local_test_app_password
       DBT_DB_PASSWORD: local_test_dbt_password
       DBT_TEST_DB_PASSWORD: local_test_dbt_password
+      REPORT_DB_PASSWORD: local_test_report_password
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Check dashboard JavaScript syntax
+        run: |
+          node --check dashboard/app.js
+          node --check dashboard/analytics.mjs
+          node --check scripts/check_dashboard_metrics.mjs
+
+      - name: Run dashboard tests
+        run: node --test tests/dashboard/*.test.mjs
 
       - name: Set up Python
         uses: actions/setup-python@v6

@@ -39,3 +39,29 @@ def connect_database() -> psycopg.Connection:
         # Writers must explicitly group related changes with conn.transaction().
         autocommit=True,
     )
+
+def connect_reporting_database() -> psycopg.Connection:
+    """Open a reporting connection using the dedicated read-only role."""
+    host = _required_env("APP_DB_HOST")
+    port_raw = _required_env("APP_DB_PORT")
+    dbname = _required_env("APP_DB_NAME")
+    password = _required_env("REPORT_DB_PASSWORD")
+
+    try:
+        port = int(port_raw)
+    except ValueError as exc:
+        raise ValueError("APP_DB_PORT must be an integer") from exc
+
+    if not 1 <= port <= 65535:
+        raise ValueError("APP_DB_PORT must be between 1 and 65535")
+
+    return psycopg.connect(
+        host=host,
+        port=port,
+        dbname=dbname,
+        user="tender_reporter",
+        password=password,
+        connect_timeout=10,
+        application_name="tender-intelligence-reporting",
+        autocommit=True,
+    )
