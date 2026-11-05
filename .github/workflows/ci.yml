@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Python and dbt tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    env:
+      # Compose resolves the base file before applying test overrides.
+      POSTGRES_DB: tender_intelligence_test
+      POSTGRES_USER: tender_test_admin
+      POSTGRES_PASSWORD: local_test_admin_password
+      APP_DB_PASSWORD: local_test_app_password
+      DBT_DB_PASSWORD: local_test_dbt_password
+      DBT_TEST_DB_PASSWORD: local_test_dbt_password
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dbt.txt
+
+      - name: Install application and test dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
+          .venv/bin/python -m pip check
+
+      - name: Install dbt
+        run: |
+          python -m venv .venv-dbt
+          .venv-dbt/bin/python -m pip install --upgrade pip
+          .venv-dbt/bin/python -m pip install -r requirements-dbt.txt
+          .venv-dbt/bin/python -m pip check
+
+      - name: Start test database
+        run: >
+          docker compose
+          -p tender-intelligence-tests
+          -f compose.yaml
+          -f compose.test.yaml
+          up -d --wait --wait-timeout 120 postgres
+
+      - name: Run Python tests
+        run: .venv/bin/python -m pytest -q
+
+      - name: Check dbt connection
+        run: .venv/bin/python scripts/run_dbt.py debug --target test
+
+      - name: Build dbt models and run tests
+        run: .venv/bin/python scripts/run_dbt.py build --target test
+
+      - name: Show database logs on failure
+        if: failure()
+        run: >
+          docker compose
+          -p tender-intelligence-tests
+          -f compose.yaml
+          -f compose.test.yaml
+          logs --no-color postgres
+
+      - name: Stop test database
+        if: always()
+        run: >
+          docker compose
+          -p tender-intelligence-tests
+          -f compose.yaml
+          -f compose.test.yaml
+          down --volumes --remove-orphans
