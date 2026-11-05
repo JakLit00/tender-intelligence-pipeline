@@ -26,6 +26,7 @@ jobs:
       APP_DB_PASSWORD: local_test_app_password
       DBT_DB_PASSWORD: local_test_dbt_password
       DBT_TEST_DB_PASSWORD: local_test_dbt_password
+      REPORT_DB_PASSWORD: local_test_report_password
 
     steps:
       - name: Check out repository
