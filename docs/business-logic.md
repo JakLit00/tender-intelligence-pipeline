@@ -14,6 +14,8 @@ Two discovery flags distinguish notices retrieved by the scope search from those
 
 Publication date, XML issue date, retrieval time and dashboard generation time have different meanings. Dashboard date filters select the publication date of the current observation, not its deadline date. Normal incremental ingestion ends at the previous UTC calendar day and rechecks an overlap window.
 
+Backfill also accepts only completed UTC days. A requested range ending today or in the future is rejected before a pipeline run is created.
+
 ## Entities and grain
 
 | Entity | Meaning |
@@ -29,6 +31,8 @@ A procedure may generate multiple publications, and a publication may contain mu
 ## Predecessor resolution
 
 Use the explicit changed-notice reference, parsed as either a publication number or a notice UUID plus version. Candidate predecessors must be successfully prepared. Validate the match rather than inferring it from similar titles or publication dates.
+
+History retrieval uses that same processing-status requirement for referring notices and predecessors. Older staging rows retained after failed reprocessing are ineligible. History-only notices may reveal further predecessors without becoming reporting observations. Cycles among successfully prepared notices fail dbt build and block replacement of the dashboard snapshot.
 
 | Match status | Interpretation |
 | --- | --- |

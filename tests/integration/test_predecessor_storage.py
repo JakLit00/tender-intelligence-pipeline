@@ -10,7 +10,12 @@ from tender_intelligence.predecessors import (
     persist_predecessor,
 )
 from tender_intelligence.preparation import prepare_notice
-from tender_intelligence.storage import register_notice, save_prepared_notice
+from tender_intelligence.processing import process_notice
+from tender_intelligence.storage import (
+    register_notice,
+    save_notice_xml,
+    save_prepared_notice,
+)
 
 PUBLICATION_NUMBER = "722762-2026"
 
@@ -171,22 +176,32 @@ def test_missing_predecessor_list_is_empty_for_empty_database(db_connection):
     assert find_missing_predecessor_publications(db_connection) == []
 
 
+def seed_prepared(connection, notice):
+    register_notice(
+        connection,
+        publication_number=notice.publication_number,
+        publication_date=notice.publication_date,
+        search_metadata={},
+    )
+    save_prepared_notice(connection, PreparedNoticeBundle(notice=notice, lots=()))
+    connection.execute(
+        """
+        UPDATE raw.notices
+        SET xml_content = %s, xml_downloaded_at = CURRENT_TIMESTAMP,
+            processing_status = 'succeeded', processed_at = CURRENT_TIMESTAMP
+        WHERE publication_number = %s
+        """,
+        (b"<fixture/>", notice.publication_number),
+    )
+
+
 def test_finds_notice_with_missing_predecessor(
     db_connection,
     predecessor_chain,
 ):
     current, _ = predecessor_chain
 
-    register_notice(
-        db_connection,
-        publication_number=current.publication_number,
-        publication_date=current.publication_date,
-        search_metadata={},
-    )
-    save_prepared_notice(
-        db_connection,
-        PreparedNoticeBundle(notice=current, lots=()),
-    )
+    seed_prepared(db_connection, current)
 
     assert find_missing_predecessor_publications(db_connection) == [
         current.publication_number
@@ -200,15 +215,48 @@ def test_excludes_notice_after_predecessor_is_stored(
     current, previous = predecessor_chain
 
     for notice in (current, previous):
-        register_notice(
-            db_connection,
-            publication_number=notice.publication_number,
-            publication_date=notice.publication_date,
-            search_metadata={},
-        )
-        save_prepared_notice(
-            db_connection,
-            PreparedNoticeBundle(notice=notice, lots=()),
-        )
+        seed_prepared(db_connection, notice)
 
     assert find_missing_predecessor_publications(db_connection) == []
+
+
+@pytest.mark.parametrize("status", ["pending", "failed"])
+def test_stale_predecessor_staging_does_not_hide_missing_history(
+    db_connection, predecessor_chain, status
+):
+    current, previous = predecessor_chain
+    for notice in (current, previous):
+        seed_prepared(db_connection, notice)
+    save_notice_xml(db_connection, previous.publication_number, b"<broken>")
+    if status == "failed":
+        assert process_notice(db_connection, previous.publication_number) == "failed"
+    assert find_missing_predecessor_publications(db_connection) == [
+        current.publication_number
+    ]
+
+
+@pytest.mark.parametrize("status", ["pending", "failed"])
+def test_stale_current_notice_does_not_schedule_history(
+    db_connection, predecessor_chain, status
+):
+    current, _ = predecessor_chain
+    seed_prepared(db_connection, current)
+    save_notice_xml(db_connection, current.publication_number, b"<broken>")
+    if status == "failed":
+        assert process_notice(db_connection, current.publication_number) == "failed"
+    assert find_missing_predecessor_publications(db_connection) == []
+
+
+def test_history_only_notice_can_reveal_another_predecessor(
+    db_connection, predecessor_chain
+):
+    current, _ = predecessor_chain
+    seed_prepared(db_connection, current)
+    db_connection.execute(
+        "UPDATE raw.notices SET discovered_by_scope_search = false, "
+        "discovered_as_predecessor = true WHERE publication_number = %s",
+        (current.publication_number,),
+    )
+    assert find_missing_predecessor_publications(db_connection) == [
+        current.publication_number
+    ]

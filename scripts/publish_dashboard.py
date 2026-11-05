@@ -14,14 +14,64 @@ REPOSITORY_URL = "https://github.com/JakLit00/tender-intelligence-pipeline.git"
 PUBLISH_BRANCH = "gh-pages"
 
 
+class GitCommandError(RuntimeError):
+    pass
+
+
+def _git_failure_reason(stderr: str) -> str:
+    message = stderr.lower()
+    if any(
+        word in message for word in ("non-fast-forward", "fetch first", "stale info")
+    ):
+        return "Remote branch changed; review the latest dashboard and retry"
+    if any(
+        word in message
+        for word in (
+            "authentication",
+            "permission denied",
+            "403",
+            "could not read username",
+            "repository not found",
+        )
+    ):
+        return "Check repository access and Git credential configuration"
+    if any(
+        word in message
+        for word in ("resolve host", "connect", "timed out", "ssl", "certificate")
+    ):
+        return "Check network connectivity and TLS configuration"
+    if (
+        "user.name" in message
+        or "user.email" in message
+        or "identity unknown" in message
+    ):
+        return "Configure Git user.name and user.email"
+    return "Check repository state, Git configuration and remote permissions"
+
+
 def run_git(directory: Path, *arguments: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(directory), *arguments],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    operation = arguments[0]
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(directory), *arguments],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.CalledProcessError as error:
+        # Classify stderr without copying URLs, headers or arbitrary credentials.
+        reason = _git_failure_reason(error.stderr or "")
+        if operation == "config" and arguments[1:2] in (
+            ("user.name",),
+            ("user.email",),
+        ):
+            reason = "Configure Git user.name and user.email"
+        raise GitCommandError(
+            f"Git {operation} failed (exit {error.returncode}): {reason}"
+        ) from None
+    except subprocess.TimeoutExpired:
+        raise GitCommandError(f"Git {operation} timed out after 120 seconds") from None
     return result.stdout.strip()
 
 
@@ -122,8 +172,11 @@ def main() -> int:
             Path(__file__).resolve().parents[1],
             publish=args.publish,
         )
+    except GitCommandError as error:
+        logger.error("%s", error)
+        return 1
     except subprocess.CalledProcessError as error:
-        logger.error("Git or validation command failed (exit %s)", error.returncode)
+        logger.error("Dashboard validation failed (exit %s)", error.returncode)
         return 1
     except Exception:
         logger.exception("Dashboard publication failed")

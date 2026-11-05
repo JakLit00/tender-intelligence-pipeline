@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from tender_intelligence.database import connect_database
-from tender_intelligence.pipeline import run_backfill
+from tender_intelligence.pipeline import run_backfill, validate_backfill_window
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,8 +19,10 @@ def main() -> None:
     parser.add_argument("--date-to", required=True, type=date.fromisoformat)
     args = parser.parse_args()
 
-    if args.date_to < args.date_from:
-        parser.error("--date-to must not be earlier than --date-from")
+    try:
+        validate_backfill_window(args.date_from, args.date_to)
+    except ValueError as error:
+        parser.error(str(error))
 
     logging.basicConfig(
         level=logging.INFO,

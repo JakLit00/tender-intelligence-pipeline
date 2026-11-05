@@ -1,4 +1,7 @@
+import os
+import subprocess
 from collections.abc import Iterator
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -89,3 +92,85 @@ def pipeline_connection() -> Iterator[psycopg.Connection]:
             yield conn
     finally:
         clear_test_data()
+
+
+@pytest.fixture(scope="session")
+def dbt_runner(tmp_path_factory):
+    root = Path(__file__).resolve().parents[2]
+    temporary = tmp_path_factory.mktemp("dbt-test")
+    # A dedicated profile cannot inherit a developer's host, target or password.
+    (temporary / "profiles.yml").write_text(
+        "tender_intelligence:\n"
+        "  target: test\n"
+        "  outputs:\n"
+        "    test:\n"
+        "      type: postgres\n"
+        "      host: 127.0.0.1\n"
+        "      port: 5435\n"
+        "      dbname: tender_intelligence_test\n"
+        "      user: tender_dbt\n"
+        "      password: local_test_dbt_password\n"
+        "      schema: analytics\n"
+        "      threads: 2\n"
+        "      connect_timeout: 5\n",
+        encoding="utf-8",
+    )
+    with psycopg.connect(
+        host="127.0.0.1",
+        port=5435,
+        dbname="tender_intelligence_test",
+        user="tender_dbt",
+        password="local_test_dbt_password",
+        connect_timeout=5,
+        autocommit=True,
+    ) as connection:
+        identity = connection.execute(
+            "SELECT current_database(), current_user, rolsuper "
+            "FROM pg_roles WHERE rolname=current_user"
+        ).fetchone()
+        if identity != ("tender_intelligence_test", "tender_dbt", False):
+            raise RuntimeError("Unexpected dbt test database or role")
+    executable = (
+        root / ".venv-dbt" / ("Scripts/dbt.exe" if os.name == "nt" else "bin/dbt")
+    )
+    if not executable.is_file():
+        pytest.fail(
+            "Install requirements-dbt.txt in .venv-dbt before integration tests"
+        )
+
+    def run(*arguments):
+        return subprocess.run(
+            [
+                str(executable),
+                *arguments,
+                "--target",
+                "test",
+                "--project-dir",
+                str(root / "dbt"),
+                "--profiles-dir",
+                str(temporary),
+                "--target-path",
+                str(temporary / "target"),
+                "--log-path",
+                str(temporary / "logs"),
+                "--no-use-colors",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env={
+                **os.environ,
+                "PYTHON_DOTENV_DISABLED": "1",
+                "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
+            },
+        )
+
+    return run, temporary / "target"
+
+
+@pytest.fixture(scope="session")
+def dbt_models(dbt_runner):
+    run, _ = dbt_runner
+    result = run("run")
+    assert result.returncode == 0, result.stdout + result.stderr
