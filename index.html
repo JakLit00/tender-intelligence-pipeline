@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tender Intelligence</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">POLISH IT PROCUREMENT · TED</p>
+        <h1>Tender Intelligence</h1>
+        <p>
+          Explore submission deadline changes and the quality of available comparisons.
+        </p>
+        <p id="snapshot-info" class="muted"></p>
+      </header>
+
+      <p id="loading" role="status">Loading dashboard…</p>
+      <p id="error" role="alert" hidden></p>
+
+      <div id="dashboard-content" hidden>
+        <section class="panel filters" aria-label="Report filters">
+          <div>
+            <label for="date-from">Publication date from</label>
+            <input type="date" id="date-from" />
+          </div>
+
+          <div>
+            <label for="date-to">Publication date to</label>
+            <input type="date" id="date-to" />
+          </div>
+
+          <div class="search-filter">
+            <label for="search">Search notices</label>
+            <input
+              type="search"
+              id="search"
+              placeholder="Notice title, buyer or publication number"
+            />
+          </div>
+
+          <button type="button" id="reset-filters">Reset filters</button>
+
+          <p id="filter-error" role="alert" hidden></p>
+        </section>
+
+        <p id="selection-info" class="muted" role="status"></p>
+        <section class="metrics" aria-label="Summary metrics">
+          <article class="metric">
+            <h2>Lot observations</h2>
+            <p id="total-observations" class="metric-value"></p>
+            <p class="muted">One lot in one publication</p>
+          </article>
+          <article class="metric">
+            <h2>Comparison coverage</h2>
+            <p id="comparison-coverage" class="metric-value"></p>
+            <p class="muted">Comparable / matched lot observations</p>
+          </article>
+          <article class="metric">
+            <h2>Extension rate</h2>
+            <p id="extension-rate" class="metric-value"></p>
+            <p class="muted">Extended / comparable lot observations</p>
+          </article>
+          <article class="metric">
+            <h2>Median extension</h2>
+            <p id="median-extension" class="metric-value"></p>
+            <p class="muted">Among extended observations only</p>
+          </article>
+        </section>
+
+        <section class="panel status-panel" aria-labelledby="status-heading">
+          <h2 id="status-heading">Comparison outcomes</h2>
+          <p class="muted">
+            All selected lot observations, including those without a comparable
+            deadline.
+          </p>
+          <ul id="status-chart" class="status-chart"></ul>
+          <p id="status-chart-empty" class="muted" hidden>
+            No observations match the selected filters.
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2>Deadline change observations</h2>
+          <p class="muted">
+            A procedure may appear in multiple publications. These rows represent
+            historical observations, not a list of currently open tenders.
+          </p>
+
+          <div
+            class="table-container"
+            tabindex="0"
+            aria-label="Scrollable observations table"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Publication</th>
+                  <th scope="col">Published</th>
+                  <th scope="col">Notice title</th>
+                  <th scope="col">Buyers</th>
+                  <th scope="col">Lot</th>
+                  <th scope="col">Change status</th>
+                  <th scope="col">Change (hours)</th>
+                  <th scope="col">Details</th>
+                </tr>
+              </thead>
+              <tbody id="observations"></tbody>
+            </table>
+          </div>
+          <p id="row-count" class="muted"></p>
+        </section>
+      </div>
+
+      <dialog id="notice-details" aria-labelledby="details-heading">
+        <div class="details-header">
+          <h2 id="details-heading">Observation details</h2>
+          <button type="button" id="close-details">Close</button>
+        </div>
+        <dl id="details-fields"></dl>
+        <p id="details-source"></p>
+      </dialog>
+
+      <footer>
+        Source: Tenders Electronic Daily. Missing values are displayed as “—”.
+      </footer>
+    </main>
+  </body>
+</html>
