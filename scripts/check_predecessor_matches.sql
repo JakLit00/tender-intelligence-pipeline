@@ -1,22 +1,34 @@
 \set ON_ERROR_STOP on
 \pset pager off
 
-WITH predecessor_matches AS (
+WITH eligible AS (
+    SELECT notice.*
+    FROM staging.notices AS notice
+    JOIN raw.notices AS source USING (publication_number)
+    WHERE source.processing_status = 'succeeded'
+),
+predecessor_matches AS (
     SELECT
         current_notice.publication_number,
         current_notice.reference_type,
         current_notice.changed_notice_identifier_raw,
         matches.candidate_count,
-        matches.candidate_publications
-    FROM staging.notices AS current_notice
+        matches.candidate_publications,
+        matches.has_procedure_mismatch
+    FROM eligible AS current_notice
     CROSS JOIN LATERAL (
         SELECT
             count(*) AS candidate_count,
             array_agg(
                 predecessor.publication_number
                 ORDER BY predecessor.publication_number
-            ) AS candidate_publications
-        FROM staging.notices AS predecessor
+            ) AS candidate_publications,
+            bool_or(
+                current_notice.procedure_id IS NOT NULL
+                AND predecessor.procedure_id IS NOT NULL
+                AND current_notice.procedure_id <> predecessor.procedure_id
+            ) AS has_procedure_mismatch
+        FROM eligible AS predecessor
         WHERE (
             current_notice.reference_type = 'publication_number'
             AND predecessor.publication_number =
@@ -41,6 +53,7 @@ classified AS (
             WHEN candidate_count > 1 THEN 'ambiguous'
             WHEN publication_number = ANY(candidate_publications)
                 THEN 'self_reference'
+            WHEN has_procedure_mismatch THEN 'procedure_mismatch'
             ELSE 'matched'
         END AS match_status
     FROM predecessor_matches

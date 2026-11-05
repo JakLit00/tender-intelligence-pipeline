@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import shutil
 import subprocess
 from pathlib import Path
 from zipfile import ZipFile
@@ -90,3 +92,37 @@ def test_validator_receives_copied_snapshot(builder, project, monkeypatch):
 
     with ZipFile(destination) as archive:
         assert archive.read("data/dashboard.json") == b'{"snapshot": "original"}'
+
+
+@pytest.mark.parametrize("invalid", [None, "missing_scope", "unknown_nested_field"])
+def test_build_runs_real_contract_validator(builder, tmp_path, invalid):
+    root = Path(__file__).resolve().parents[1]
+    for name in builder.DASHBOARD_FILES:
+        target = tmp_path / "dashboard" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source = root / (
+            "tests/fixtures/dashboard.json"
+            if name == "data/dashboard.json"
+            else f"dashboard/{name}"
+        )
+        shutil.copyfile(source, target)
+    (tmp_path / "scripts").mkdir()
+    shutil.copyfile(
+        root / "scripts/check_dashboard_metrics.mjs",
+        tmp_path / "scripts/check_dashboard_metrics.mjs",
+    )
+    original = builder.build_dashboard(tmp_path).read_bytes()
+    if invalid is None:
+        with ZipFile(tmp_path / "dist/dashboard.zip") as archive:
+            assert "contract.mjs" in archive.namelist()
+        return
+    path = tmp_path / "dashboard/data/dashboard.json"
+    data = json.loads(path.read_text())
+    if invalid == "missing_scope":
+        del data["scope"]
+    else:
+        data["observations"][0]["internal_debug"] = "not public"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(subprocess.CalledProcessError):
+        builder.build_dashboard(tmp_path)
+    assert (tmp_path / "dist/dashboard.zip").read_bytes() == original

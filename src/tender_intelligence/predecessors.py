@@ -155,15 +155,21 @@ def find_missing_predecessor_publications(
 ) -> list[str]:
     rows = connection.execute(
         """
+        WITH eligible AS (
+            SELECT notice.*
+            FROM staging.notices AS notice
+            JOIN raw.notices AS source USING (publication_number)
+            WHERE source.processing_status = 'succeeded'
+        )
         SELECT current_notice.publication_number
-        FROM staging.notices AS current_notice
+        FROM eligible AS current_notice
         WHERE current_notice.reference_type IN (
             'publication_number',
             'notice_version'
         )
           AND NOT EXISTS (
               SELECT 1
-              FROM staging.notices AS predecessor
+              FROM eligible AS predecessor
               WHERE (
                   current_notice.reference_type = 'publication_number'
                   AND predecessor.publication_number

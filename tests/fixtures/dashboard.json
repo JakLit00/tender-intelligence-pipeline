@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-05T12:00:00Z",
+  "scope": {
+    "notice_count": 1,
+    "first_publication_date": "2026-11-04",
+    "last_publication_date": "2026-11-04"
+  },
+  "summary": {
+    "total_lot_observations": 1,
+    "matched_lot_observations": 1,
+    "comparable_lot_observations": 1,
+    "extended_lot_observations": 1,
+    "shortened_lot_observations": 0,
+    "unchanged_lot_observations": 0,
+    "quality_issue_lot_observations": 0,
+    "missing_deadline_lot_observations": 0,
+    "comparison_coverage_pct": 100,
+    "extension_rate_pct": 100,
+    "median_extension_hours": 24
+  },
+  "observations": [
+    {
+      "publication_number": "123-2026",
+      "lot_id": "LOT-0001",
+      "procedure_id": null,
+      "publication_date": "2026-11-04",
+      "notice_title": "Synthetic test notice",
+      "buyer_names": null,
+      "notice_url": "https://ted.europa.eu/pl/notice/-/detail/123-2026",
+      "predecessor_publication_number": "122-2026",
+      "predecessor_match_status": "matched",
+      "predecessor_lot_found": true,
+      "previous_deadline_date": "2026-12-01",
+      "current_deadline_date": "2026-12-02",
+      "previous_deadline_at": "2026-12-01T09:00:00Z",
+      "current_deadline_at": "2026-12-02T09:00:00Z",
+      "previous_quality_issue": null,
+      "current_quality_issue": null,
+      "deadline_change_status": "extended",
+      "deadline_change_hours": 24
+    }
+  ]
+}

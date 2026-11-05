@@ -1,4 +1,5 @@
 import { filterObservations, summarizeObservations } from "./analytics.mjs";
+import { validateDashboardSnapshot } from "./contract.mjs";
 
 const numberFormat = new Intl.NumberFormat("en-GB", {
   maximumFractionDigits: 2,
@@ -294,17 +295,7 @@ async function loadDashboard() {
 
     const data = await response.json();
 
-    if (data.schema_version !== 1) {
-      throw new Error("Unsupported dashboard data version");
-    }
-
-    if (!Array.isArray(data.observations) || !data.summary || !data.scope) {
-      throw new Error("Incomplete dashboard data");
-    }
-
-    if (data.summary.total_lot_observations !== data.observations.length) {
-      throw new Error("Dashboard observation counts do not match");
-    }
+    validateDashboardSnapshot(data);
 
     renderSnapshotInfo(data);
     initializeFilters(data);

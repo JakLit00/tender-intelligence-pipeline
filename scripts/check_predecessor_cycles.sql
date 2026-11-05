@@ -1,12 +1,18 @@
 \set ON_ERROR_STOP on
 \pset pager off
 
-WITH RECURSIVE edges AS (
+WITH RECURSIVE eligible AS (
+    SELECT notice.*
+    FROM staging.notices AS notice
+    JOIN raw.notices AS source USING (publication_number)
+    WHERE source.processing_status = 'succeeded'
+),
+edges AS (
     SELECT
         current_notice.publication_number AS current_publication,
         predecessor.publication_number AS previous_publication
-    FROM staging.notices AS current_notice
-    JOIN staging.notices AS predecessor
+    FROM eligible AS current_notice
+    JOIN eligible AS predecessor
         ON (
             current_notice.reference_type = 'publication_number'
             AND predecessor.publication_number

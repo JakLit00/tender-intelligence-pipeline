@@ -13,6 +13,7 @@ DASHBOARD_FILES = (
     "styles.css",
     "app.js",
     "analytics.mjs",
+    "contract.mjs",
     "data/dashboard.json",
 )
 
@@ -61,7 +62,8 @@ def build_dashboard(project_root: Path) -> Path:
         checks.mkdir()
         copied_dashboard = temporary_root / "dashboard"
         copied_dashboard.mkdir()
-        shutil.copyfile(site / "analytics.mjs", copied_dashboard / "analytics.mjs")
+        for module in ("analytics.mjs", "contract.mjs"):
+            shutil.copyfile(site / module, copied_dashboard / module)
         copied_validator = checks / validator.name
         shutil.copyfile(validator, copied_validator)
 

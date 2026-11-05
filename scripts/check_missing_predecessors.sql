@@ -1,6 +1,12 @@
 \set ON_ERROR_STOP on
 \pset pager off
 
+WITH eligible AS (
+    SELECT notice.*
+    FROM staging.notices AS notice
+    JOIN raw.notices AS source USING (publication_number)
+    WHERE source.processing_status = 'succeeded'
+)
 SELECT
     current_notice.publication_number,
     current_notice.reference_type,
@@ -8,14 +14,14 @@ SELECT
     current_notice.previous_publication_number,
     current_notice.previous_notice_id,
     current_notice.previous_notice_version
-FROM staging.notices AS current_notice
+FROM eligible AS current_notice
 WHERE current_notice.reference_type IN (
     'publication_number',
     'notice_version'
 )
 AND NOT EXISTS (
     SELECT 1
-    FROM staging.notices AS predecessor
+    FROM eligible AS predecessor
     WHERE (
         current_notice.reference_type = 'publication_number'
         AND predecessor.publication_number =

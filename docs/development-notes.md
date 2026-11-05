@@ -2,7 +2,7 @@
 
 ## Purpose and development sequence
 
-This document records implementation decisions and operational knowledge. It describes the implemented system rather than a future feature list. Public deployment and the final security review are not complete at this checkpoint.
+This document records implementation decisions and operational knowledge. It describes the implemented system rather than a future feature list. Publication tooling is implemented; repository hosting settings and a live deployment require separate verification.
 
 1. **Inspect real TED data.** Examine search metadata and XML before defining the relational model. Distinguish publication numbers, notice UUIDs, versions, procedures and lot identifiers. Verify submission deadline paths with real change chains.
 2. **Build preparation functions.** Separate extraction from normalization and business classification. Cover publication-number references and UUID-version references with focused tests.
@@ -49,15 +49,21 @@ The diagram shows the main model dependencies; source tables also provide the pr
 
 **Repeatability.** Unchanged XML already processed successfully is skipped. Failed payloads remain eligible for retry. This limits duplicate work but does not make the entire multi-stage refresh one database transaction.
 
-**History boundaries.** A history run processes a bounded selection of unresolved references. Newly discovered predecessors may themselves refer to older notices; therefore several successful batches can be required. A successful batch does not mean the entire graph is complete. The refresh orchestrator checks remaining work, detects lack of progress and enforces a batch limit. A separate SQL diagnostic checks cycles.
+**History boundaries.** A history run processes a bounded selection of unresolved references. Both referring notices and candidate predecessors must have `raw.processing_status = 'succeeded'`; retained staging rows for pending/failed XML do not count as prepared. History-only notices remain eligible to reveal deeper links, while the reporting cohort still requires scope-search discovery. Newly discovered predecessors may themselves refer to older notices, so several batches can be required. The refresh orchestrator checks remaining work, detects lack of progress and enforces a batch limit. The `no_predecessor_cycles` dbt test checks all eligible history, including self-references and UUID-version links. A cycle makes build fail and prevents refresh from replacing the snapshot; the SQL diagnostic also remains available for inspection.
 
 **Incremental coverage.** Successful backfill/incremental coverage determines the next search window, with overlap to revisit recent publications. Retry/history runs are not substitutes for complete date-window ingestion. Overlap reduces missed late changes but does not guarantee discovery of every arbitrarily late correction; a historical backfill remains necessary in that situation.
+
+Backfill rejects ranges ending today or later in UTC, both in the CLI and in the domain function before creating a run. Previously recorded invalid coverage is not rewritten automatically. If an older run claimed incomplete/future days, review that run before explicitly correcting its coverage record; a new successful run does not invalidate the old one.
+
+**Retry and network limits.** `retry_failed_processing.py --source-run-id ID` retries failed items using stored XML. It rejects unfinished and history source runs. A missing XML item remains failed with download guidance; other items continue. Source outcomes are retained. Backfill/incremental recover downloads, and history retrieval is retried through `run_history.py`. The TED client allows three attempts for selected HTTP failures and transient transport failures (timeouts, connection interruptions/refusals, temporary DNS and incomplete bodies), with backoff. Certificate errors, permanent DNS errors and unclassified failures are not retried. Retry-After values above the configured delay limit stop the request. Each response is limited to 20 MiB of actually read bytes, regardless of Content-Length; an oversized response fails without retry.
 
 **Timezone conflicts.** The source can supply a date ending in `Z` and a time with a different offset. The system does not silently favor one. Local date, raw values and a quality issue remain available, while exact comparison is withheld.
 
 **Separate reporting role.** The exporter connects as `tender_reporter`, with SELECT access to analytics. Default privileges for models created by `tender_dbt` preserve this access when models are recreated. Application, dbt and reporting credentials are separate.
 
 **Consistent export.** Summary, scope and detail rows are read in a repeatable-read, read-only transaction. Serialization handles dates, UTC timestamps, decimals and UUIDs; unsupported values fail explicitly. A candidate JSON file is checked before same-filesystem replacement of the final snapshot.
+
+The shared [dashboard contract](dashboard-contract.md) rejects missing/unknown fields, invalid types and dates, inconsistent statuses and duplicate publication-lot pairs. It also recalculates summary metrics. It runs in refresh, ZIP building and the browser; contract validation is not a freshness guarantee. The standalone `export_dashboard.py` writes JSON without invoking Node; validate that output before using it as a public snapshot.
 
 **Static delivery.** HTML, CSS, JavaScript and JSON can present a frozen result without a running database or Python server in production. Browser code does not need database credentials. Local preview uses Python's HTTP server. GitHub Pages publication is a separate step, not an effect of ingestion.
 
@@ -72,6 +78,8 @@ The GitHub Actions workflow uses Ubuntu 24.04 and installs Python, Node.js, appl
 A full live refresh on **5 November 2026** succeeded on Ubuntu 26.04 under WSL2 with Python 3.13.18. It produced **204 scope publications and 401 lot observations**, completed dbt with PASS=35 and matched every exported summary metric against the JavaScript implementation. Windows had produced the same cohort counts earlier that day. Equal counts alone are not proof of byte-identical datasets.
 
 Mocked orchestration tests exercise stage failures and preservation of the previous snapshot. Database integration tests exercise actual transactions and constraints. dbt unit tests use controlled inputs to check classification; data tests check built relations. Passing tests do not constitute a complete security audit or a guarantee of source completeness.
+
+Integration tests now build dbt views using a temporary profile fixed to the test database, exercise a nonempty SQL → reporting-role export → real JavaScript validator flow, reject cycles through real dbt build, and check denied role permissions. Install `.venv-dbt` and Node before running them. Publisher tests use temporary local bare remotes and cover dry runs, history preservation, malformed ZIPs, unexpected branch files, concurrent updates and safe diagnostics. They never contact the real publishing remote.
 
 ## Fresh setup and environment isolation
 
@@ -127,4 +135,8 @@ Feature branches and pull requests keep changes reviewable. CI checks precede me
 
 Secrets, local payloads, generated snapshots and virtual environments stay out of Git. The current static UI creates text content through DOM APIs and constructs TED links from publication identifiers; these choices still require review alongside dependency, export and workflow configuration.
 
-Before public release: complete the targeted security review and fixes, prepare and audit the publishing path, observe several daily refreshes, and verify the final public payload. The dashboard is not currently documented as deployed, and no completed multi-day operational trial is claimed.
+The [README publication procedure](../README.md#package-and-publish-the-dashboard) describes local building, networked dry runs and explicit publication. The publisher uses a fixed repository URL, preserves branch history and refuses unexpected files. It does not configure Pages, refresh data or prove that a hosted deployment succeeded. Verify the final payload and hosting independently, and observe several daily refreshes before claiming an operational trial.
+
+The audit fixes require no table or role migration. Deploy the Python/JavaScript changes together and run the normal dbt build to execute the additional cycle check. Review any existing failed source records or previously invalid coverage separately; no automatic repair of historical operational records is performed.
+
+Actions are pinned to commits verified against the official repositories. Full Python dependency locking and a lightweight Windows CI job remain separate proposals; neither is introduced by these fixes.

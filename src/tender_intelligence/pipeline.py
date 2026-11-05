@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 from urllib.error import URLError
 
@@ -151,6 +151,13 @@ def _run_date_range(
     return run_id
 
 
+def validate_backfill_window(date_from: date, date_to: date) -> None:
+    if date_to < date_from:
+        raise ValueError("date_to must not be earlier than date_from")
+    if date_to >= datetime.now(UTC).date():
+        raise ValueError("Backfill must end before today in UTC")
+
+
 def run_backfill(
     conn: psycopg.Connection,
     *,
@@ -158,6 +165,7 @@ def run_backfill(
     date_to: date,
 ) -> int:
     """Run a historical search and process its publications."""
+    validate_backfill_window(date_from, date_to)
     return _run_date_range(
         conn,
         date_from=date_from,

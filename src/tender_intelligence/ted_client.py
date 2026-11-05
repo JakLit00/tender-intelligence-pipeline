@@ -1,9 +1,13 @@
+import errno
 import json
+import socket
+import ssl
 import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from http.client import IncompleteRead
 from typing import Any
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from tender_intelligence.normalization import normalize_publication_number
@@ -22,6 +26,36 @@ SEARCH_FIELDS = (
 RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
 MAX_ATTEMPTS = 3
 MAX_RETRY_DELAY_SECONDS = 60
+MAX_RESPONSE_BYTES = 20 * 1024 * 1024
+
+
+def _is_transient_transport_error(error: BaseException) -> bool:
+    reason = error.reason if isinstance(error, URLError) else error
+    if isinstance(reason, ssl.SSLError):
+        return False
+    if isinstance(reason, socket.gaierror):
+        return reason.errno == socket.EAI_AGAIN
+    if isinstance(reason, (TimeoutError, ConnectionError, IncompleteRead)):
+        return True
+    return isinstance(reason, OSError) and reason.errno in {
+        errno.ETIMEDOUT,
+        errno.ECONNRESET,
+        errno.ECONNABORTED,
+        errno.ECONNREFUSED,
+        errno.EPIPE,
+    }
+
+
+def _read_limited(response: Any) -> bytes:
+    content = bytearray()
+    while True:
+        # Read one extra byte to detect overflow without trusting Content-Length.
+        chunk = response.read(min(65536, MAX_RESPONSE_BYTES + 1 - len(content)))
+        if not chunk:
+            return bytes(content)
+        content.extend(chunk)
+        if len(content) > MAX_RESPONSE_BYTES:
+            raise ValueError("TED response exceeds the byte limit")
 
 
 def _retry_delay(value: str | None, *, attempt: int) -> float:
@@ -53,7 +87,7 @@ def _request_bytes(request: Request) -> bytes:
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             with urlopen(request, timeout=30) as response:
-                return response.read()
+                return _read_limited(response)
         except HTTPError as exc:
             if exc.code not in RETRYABLE_HTTP_CODES or attempt == MAX_ATTEMPTS:
                 raise
@@ -69,6 +103,12 @@ def _request_bytes(request: Request) -> bytes:
 
             exc.close()
             time.sleep(delay)
+        except (URLError, OSError, IncompleteRead) as exc:
+            if not _is_transient_transport_error(exc) or attempt == MAX_ATTEMPTS:
+                if isinstance(exc, URLError):
+                    raise
+                raise URLError(exc) from exc
+            time.sleep(float(2 ** (attempt - 1)))
 
     raise RuntimeError("Search request attempts exhausted")
 
