@@ -1,5 +1,10 @@
 # Tender Intelligence Pipeline
 
+[![CI](https://github.com/JakLit00/tender-intelligence-pipeline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JakLit00/tender-intelligence-pipeline/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live dashboard](https://img.shields.io/badge/Dashboard-Live-087C83)](https://jaklit00.github.io/tender-intelligence-pipeline/)
+
 Track submission deadline changes in Polish IT procurement notices from [TED](https://ted.europa.eu/). The pipeline collects publications, follows their explicit predecessor references, and compares deadlines for corresponding procurement lots. A searchable dashboard helps a bid team inspect changes and open the original notices.
 
 **Stack:** Python 3.13 · pandas · PostgreSQL 16 · dbt Core · Docker Compose · JavaScript · GitHub Actions
