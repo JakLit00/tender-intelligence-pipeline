@@ -56,9 +56,7 @@ test("returns null percentages and median for an empty selection", () => {
 });
 
 test("distinguishes zero coverage from an undefined extension rate", () => {
-  const summary = summarizeObservations([
-    comparableRow("quality_issue", null),
-  ]);
+  const summary = summarizeObservations([comparableRow("quality_issue", null)]);
 
   assert.equal(summary.comparison_coverage_pct, 0);
   assert.equal(summary.extension_rate_pct, null);
@@ -106,21 +104,14 @@ test("searches titles, buyers and publication numbers without case sensitivity",
   ];
 
   for (const search of [" sioez ", "KOMISJA", "722762"]) {
-    assert.deepEqual(
-      filterObservations(observations, { search }),
-      [observations[0]],
-    );
+    assert.deepEqual(filterObservations(observations, { search }), [observations[0]]);
   }
 
-  assert.deepEqual(
-    filterObservations(observations, { search: "ŁÓDŹ" }),
-    [observations[1]],
-  );
+  assert.deepEqual(filterObservations(observations, { search: "ŁÓDŹ" }), [
+    observations[1],
+  ]);
 
-  assert.deepEqual(
-    filterObservations(observations, { search: "nieistniejący" }),
-    [],
-  );
+  assert.deepEqual(filterObservations(observations, { search: "nieistniejący" }), []);
 });
 
 test("combines search and date filters", () => {

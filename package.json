@@ -1,0 +1,12 @@
+{
+  "name": "tender-intelligence-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write \"dashboard/**/*.{html,css,js,mjs}\" \"tests/dashboard/**/*.mjs\" \"scripts/*.mjs\"",
+    "format:check": "prettier --check \"dashboard/**/*.{html,css,js,mjs}\" \"tests/dashboard/**/*.mjs\" \"scripts/*.mjs\""
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
+  }
+}

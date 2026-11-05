@@ -1,5 +1,7 @@
 function normalizeText(value) {
-  return String(value ?? "").normalize("NFC").toLocaleLowerCase("pl");
+  return String(value ?? "")
+    .normalize("NFC")
+    .toLocaleLowerCase("pl");
 }
 
 export function filterObservations(
@@ -21,11 +23,9 @@ export function filterObservations(
       return true;
     }
 
-    return [
-      row.publication_number,
-      row.notice_title,
-      row.buyer_names,
-    ].some((value) => normalizeText(value).includes(query));
+    return [row.publication_number, row.notice_title, row.buyer_names].some((value) =>
+      normalizeText(value).includes(query),
+    );
   });
 }
 
@@ -34,7 +34,7 @@ function percentage(numerator, denominator) {
     return null;
   }
 
-  return Math.round((100 * numerator / denominator) * 100) / 100;
+  return Math.round(((100 * numerator) / denominator) * 100) / 100;
 }
 
 function median(values) {

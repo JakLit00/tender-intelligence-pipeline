@@ -1,7 +1,4 @@
-import {
-  filterObservations,
-  summarizeObservations,
-} from "./analytics.mjs";
+import { filterObservations, summarizeObservations } from "./analytics.mjs";
 
 const numberFormat = new Intl.NumberFormat("en-GB", {
   maximumFractionDigits: 2,
@@ -51,15 +48,9 @@ function renderSnapshotInfo(data) {
 
 function renderSummary(summary) {
   setText("total-observations", formatNumber(summary.total_lot_observations));
-  setText(
-    "comparison-coverage",
-    formatNumber(summary.comparison_coverage_pct, "%"),
-  );
+  setText("comparison-coverage", formatNumber(summary.comparison_coverage_pct, "%"));
   setText("extension-rate", formatNumber(summary.extension_rate_pct, "%"));
-  setText(
-    "median-extension",
-    formatNumber(summary.median_extension_hours, " h"),
-  );
+  setText("median-extension", formatNumber(summary.median_extension_hours, " h"));
 }
 
 function formatDeadline(value) {
@@ -196,9 +187,7 @@ function renderObservations(observations) {
 }
 
 function renderStatusChart(observations) {
-  const counts = new Map(
-    Object.keys(statusLabels).map((status) => [status, 0]),
-  );
+  const counts = new Map(Object.keys(statusLabels).map((status) => [status, 0]));
 
   for (const observation of observations) {
     const status = observation.deadline_change_status;
@@ -224,7 +213,7 @@ function renderStatusChart(observations) {
       const fill = document.createElement("div");
       fill.className = "status-fill";
       fill.dataset.status = status;
-      fill.style.width = `${maximum === 0 ? 0 : 100 * count / maximum}%`;
+      fill.style.width = `${maximum === 0 ? 0 : (100 * count) / maximum}%`;
 
       const value = document.createElement("span");
       value.className = "status-count";
@@ -237,8 +226,7 @@ function renderStatusChart(observations) {
   }
 
   document.getElementById("status-chart").replaceChildren(fragment);
-  document.getElementById("status-chart-empty").hidden =
-    observations.length !== 0;
+  document.getElementById("status-chart-empty").hidden = observations.length !== 0;
 }
 
 function initializeFilters(data) {

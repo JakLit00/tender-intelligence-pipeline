@@ -40,6 +40,12 @@ jobs:
           node-version: "24"
           package-manager-cache: false
 
+      - name: Install dashboard development dependencies
+        run: npm ci
+
+      - name: Check dashboard formatting
+        run: npm run format:check
+
       - name: Check dashboard JavaScript syntax
         run: |
           node --check dashboard/app.js
