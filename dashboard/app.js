@@ -62,6 +62,76 @@ function renderSummary(summary) {
   );
 }
 
+function formatDeadline(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const timestamp = new Date(value);
+
+  if (Number.isNaN(timestamp.getTime())) {
+    return "Invalid timestamp";
+  }
+
+  return timestamp.toISOString().replace("T", " ").replace(".000Z", " UTC");
+}
+
+function showObservationDetails(observation) {
+  const fields = [
+    ["Publication", observation.publication_number],
+    ["Publication date", observation.publication_date],
+    ["Lot", observation.lot_id],
+    ["Notice title", observation.notice_title],
+    ["Buyers", observation.buyer_names],
+    ["Procedure ID", observation.procedure_id],
+    ["Previous publication", observation.predecessor_publication_number],
+    ["Predecessor match status", observation.predecessor_match_status],
+    [
+      "Change status",
+      statusLabels[observation.deadline_change_status] ??
+        observation.deadline_change_status,
+    ],
+    ["Previous exact deadline (UTC)", formatDeadline(observation.previous_deadline_at)],
+    ["Current exact deadline (UTC)", formatDeadline(observation.current_deadline_at)],
+    ["Previous source local date", observation.previous_deadline_date],
+    ["Current source local date", observation.current_deadline_date],
+    ["Change (hours)", formatNumber(observation.deadline_change_hours)],
+    ["Previous quality issue", observation.previous_quality_issue],
+    ["Current quality issue", observation.current_quality_issue],
+  ];
+
+  const fragment = document.createDocumentFragment();
+
+  for (const [label, value] of fields) {
+    const term = document.createElement("dt");
+    term.textContent = label;
+
+    const description = document.createElement("dd");
+    description.textContent = value ?? "—";
+
+    fragment.append(term, description);
+  }
+
+  document.getElementById("details-fields").replaceChildren(fragment);
+
+  const source = document.getElementById("details-source");
+  source.replaceChildren();
+
+  // Build the source URL from a validated identifier, not an arbitrary input URL.
+  if (/^\d+-\d{4}$/.test(observation.publication_number)) {
+    const link = document.createElement("a");
+    link.href =
+      "https://ted.europa.eu/pl/notice/-/detail/" +
+      encodeURIComponent(observation.publication_number);
+    link.textContent = "Open publication on TED";
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    source.appendChild(link);
+  }
+
+  document.getElementById("notice-details").showModal();
+}
+
 function renderObservations(observations) {
   const fragment = document.createDocumentFragment();
 
@@ -92,13 +162,30 @@ function renderObservations(observations) {
       row.appendChild(cell);
     }
 
+    const actionCell = document.createElement("td");
+    const detailsButton = document.createElement("button");
+
+    detailsButton.type = "button";
+    detailsButton.className = "details-button";
+    detailsButton.textContent = "View";
+    detailsButton.setAttribute(
+      "aria-label",
+      `View details for ${observation.publication_number}, ${observation.lot_id}`,
+    );
+    detailsButton.addEventListener("click", () => {
+      showObservationDetails(observation);
+    });
+
+    actionCell.appendChild(detailsButton);
+    row.appendChild(actionCell);
+
     fragment.appendChild(row);
   }
 
   if (sorted.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 7;
+    cell.colSpan = 8;
     cell.textContent = "No observations match the selected filters.";
     row.appendChild(cell);
     fragment.appendChild(row);
@@ -106,6 +193,52 @@ function renderObservations(observations) {
 
   document.getElementById("observations").replaceChildren(fragment);
   setText("row-count", `${formatNumber(observations.length)} observations`);
+}
+
+function renderStatusChart(observations) {
+  const counts = new Map(
+    Object.keys(statusLabels).map((status) => [status, 0]),
+  );
+
+  for (const observation of observations) {
+    const status = observation.deadline_change_status;
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+  }
+
+  const fragment = document.createDocumentFragment();
+  const maximum = Math.max(0, ...counts.values());
+
+  if (observations.length > 0) {
+    for (const [status, count] of counts) {
+      const row = document.createElement("li");
+      row.className = "status-row";
+
+      const label = document.createElement("span");
+      label.className = "status-label";
+      label.textContent = statusLabels[status] ?? status;
+
+      const track = document.createElement("div");
+      track.className = "status-track";
+      track.setAttribute("aria-hidden", "true");
+
+      const fill = document.createElement("div");
+      fill.className = "status-fill";
+      fill.dataset.status = status;
+      fill.style.width = `${maximum === 0 ? 0 : 100 * count / maximum}%`;
+
+      const value = document.createElement("span");
+      value.className = "status-count";
+      value.textContent = formatNumber(count);
+
+      track.appendChild(fill);
+      row.append(label, track, value);
+      fragment.appendChild(row);
+    }
+  }
+
+  document.getElementById("status-chart").replaceChildren(fragment);
+  document.getElementById("status-chart-empty").hidden =
+    observations.length !== 0;
 }
 
 function initializeFilters(data) {
@@ -138,6 +271,7 @@ function initializeFilters(data) {
     });
 
     renderSummary(summarizeObservations(selected));
+    renderStatusChart(selected);
     renderObservations(selected);
 
     setText(
@@ -196,5 +330,9 @@ async function loadDashboard() {
     document.getElementById("loading").hidden = true;
   }
 }
+
+document.getElementById("close-details").addEventListener("click", () => {
+  document.getElementById("notice-details").close();
+});
 
 loadDashboard();
