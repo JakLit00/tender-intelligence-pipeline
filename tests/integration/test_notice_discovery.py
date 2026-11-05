@@ -4,7 +4,6 @@ import pytest
 
 from tender_intelligence.storage import register_notice
 
-
 PUBLICATION_NUMBER = "722762-2026"
 
 

@@ -99,6 +99,7 @@ def test_duplicate_lot_identifier_is_rejected():
     with pytest.raises(ValueError, match="Duplicate lot identifier"):
         parse_notice_lots(xml)
 
+
 def test_metadata_uses_publication_date_and_preserves_raw_values():
     xml = make_notice("""
         <cbc:ID schemeName="notice-id">notice-123</cbc:ID>
@@ -167,6 +168,7 @@ def test_nested_identifier_does_not_replace_missing_notice_identifier():
 
     with pytest.raises(ValueError, match="Missing notice identifier"):
         parse_notice_metadata(xml)
+
 
 def test_rejects_date_and_time_in_separate_deadline_blocks():
     xml = make_notice("""

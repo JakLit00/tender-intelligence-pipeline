@@ -66,9 +66,7 @@ def test_rediscovery_updates_metadata_and_preserves_processing(
         search_metadata={"title": "Initial title"},
     )
     save_notice_xml(db_connection, publication_number, notice_xml)
-    assert process_notice(
-        db_connection, publication_number
-    ) == "processed"
+    assert process_notice(db_connection, publication_number) == "processed"
 
     # Fixed timestamps make the refresh check independent of execution speed.
     db_connection.execute(
@@ -129,9 +127,7 @@ def test_rediscovery_updates_metadata_and_preserves_processing(
         (publication_number,),
     ).fetchone()
 
-    assert metadata == (
-        {"title": "Updated title", "language": "POL"},
-    )
+    assert metadata == ({"title": "Updated title", "language": "POL"},)
 
     refreshed = db_connection.execute(
         """

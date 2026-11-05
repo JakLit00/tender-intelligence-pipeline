@@ -76,9 +76,7 @@ def test_repeated_batch_does_not_duplicate_publications(
 def test_empty_batch_returns_zero(
     db_connection: psycopg.Connection,
 ) -> None:
-    with patch(
-        "tender_intelligence.ingestion.register_notice"
-    ) as register:
+    with patch("tender_intelligence.ingestion.register_notice") as register:
         assert register_search_results(db_connection, []) == 0
 
     register.assert_not_called()
@@ -90,9 +88,7 @@ def test_invalid_batch_is_rejected_before_registration(
 ) -> None:
     search_results[1]["publication-date"] = "2099-02-30"
 
-    with patch(
-        "tender_intelligence.ingestion.register_notice"
-    ) as register:
+    with patch("tender_intelligence.ingestion.register_notice") as register:
         with pytest.raises(ValueError, match="Invalid XML date"):
             register_search_results(db_connection, search_results)
 

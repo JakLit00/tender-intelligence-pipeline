@@ -7,7 +7,6 @@ import pytest
 
 from tender_intelligence.pipeline import run_backfill
 
-
 SEARCH_RESULTS = [
     {
         "publication-number": "722762-2026",
@@ -106,9 +105,7 @@ def test_search_failure_marks_run_failed_and_propagates_error(
     assert runs[0][:2] == ("failed", True)
     assert "Search unavailable" in runs[0][2]
 
-    assert conn.execute(
-        "SELECT count(*) FROM ops.run_notices"
-    ).fetchone() == (0,)
+    assert conn.execute("SELECT count(*) FROM ops.run_notices").fetchone() == (0,)
 
 
 def test_download_failure_is_recorded_for_publication(
@@ -155,6 +152,7 @@ def test_download_failure_is_recorded_for_publication(
     ).fetchone()
     assert raw == ("pending", None)
 
+
 def test_download_failure_does_not_stop_remaining_publications(
     pipeline_connection: psycopg.Connection,
     notice_xml: bytes,
@@ -190,10 +188,10 @@ def test_download_failure_does_not_stop_remaining_publications(
             date_to=date(2026, 10, 29),
         )
 
-    assert [
-        invocation.args[0]
-        for invocation in download.call_args_list
-    ] == ["999997-2026", "722762-2026"]
+    assert [invocation.args[0] for invocation in download.call_args_list] == [
+        "999997-2026",
+        "722762-2026",
+    ]
 
     run = conn.execute(
         """

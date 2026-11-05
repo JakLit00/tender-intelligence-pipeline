@@ -1,10 +1,15 @@
 import logging
 from datetime import date
+from typing import Literal
 from urllib.error import URLError
 
 import psycopg
 from psycopg.pq import TransactionStatus
 
+from tender_intelligence.incremental import (
+    calculate_incremental_window,
+    get_last_successful_date,
+)
 from tender_intelligence.ingestion import register_search_results
 from tender_intelligence.normalization import normalize_publication_number
 from tender_intelligence.processing import process_notice
@@ -21,14 +26,6 @@ from tender_intelligence.ted_client import (
     fetch_notice_xml,
 )
 
-from typing import Literal
-
-from tender_intelligence.incremental import (
-    calculate_incremental_window,
-    get_last_successful_date,
-)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -40,10 +37,7 @@ def _run_date_range(
     run_mode: Literal["backfill", "incremental"],
 ) -> int:
     """Search and process publications within an explicit date range."""
-    if (
-        not conn.autocommit
-        or conn.info.transaction_status != TransactionStatus.IDLE
-    ):
+    if not conn.autocommit or conn.info.transaction_status != TransactionStatus.IDLE:
         raise ValueError(
             "Date-range ingestion requires an idle connection with autocommit enabled"
         )
@@ -156,6 +150,7 @@ def _run_date_range(
     logger.info("Finished run %s with status %s", run_id, status)
     return run_id
 
+
 def run_backfill(
     conn: psycopg.Connection,
     *,
@@ -170,6 +165,7 @@ def run_backfill(
         run_mode="backfill",
     )
 
+
 def run_incremental(
     conn: psycopg.Connection,
     *,
@@ -178,13 +174,9 @@ def run_incremental(
     overlap_days: int = 3,
 ) -> int | None:
     """Ingest complete days with an overlap of previously covered dates."""
-    if (
-        not conn.autocommit
-        or conn.info.transaction_status != TransactionStatus.IDLE
-    ):
+    if not conn.autocommit or conn.info.transaction_status != TransactionStatus.IDLE:
         raise ValueError(
-            "Incremental ingestion requires an idle connection "
-            "with autocommit enabled"
+            "Incremental ingestion requires an idle connection with autocommit enabled"
         )
 
     last_successful_date = get_last_successful_date(

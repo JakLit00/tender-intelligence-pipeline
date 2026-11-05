@@ -8,7 +8,6 @@ from tender_intelligence.normalization import (
     normalize_xml_date,
 )
 
-
 SEARCH_COLUMNS = (
     "publication_number",
     "publication_date",
@@ -31,22 +30,14 @@ def prepare_search_batch(
             value = notice.get(field)
 
             if not isinstance(value, str) or not value.strip():
-                raise ValueError(
-                    f"Missing or invalid {field} at index {index}"
-                )
+                raise ValueError(f"Missing or invalid {field} at index {index}")
 
     batch = pd.DataFrame(
         {
-            "publication_number": [
-                notice["publication-number"] for notice in notices
-            ],
-            "publication_date": [
-                notice["publication-date"] for notice in notices
-            ],
+            "publication_number": [notice["publication-number"] for notice in notices],
+            "publication_date": [notice["publication-date"] for notice in notices],
             # Keep nested source metadata independent of the input objects.
-            "search_metadata": [
-                deepcopy(notice) for notice in notices
-            ],
+            "search_metadata": [deepcopy(notice) for notice in notices],
         }
     )
 
@@ -55,17 +46,13 @@ def prepare_search_batch(
     )
 
     # Publication dates represent source calendar days, not UTC instants.
-    batch["publication_date"] = batch["publication_date"].map(
-        normalize_xml_date
-    )
+    batch["publication_date"] = batch["publication_date"].map(normalize_xml_date)
 
     duplicate_mask = batch["publication_number"].duplicated(keep=False)
 
     if duplicate_mask.any():
         duplicate_numbers = (
-            batch.loc[duplicate_mask, "publication_number"]
-            .drop_duplicates()
-            .tolist()
+            batch.loc[duplicate_mask, "publication_number"].drop_duplicates().tolist()
         )
         raise ValueError(
             "Duplicate publications after normalization: "

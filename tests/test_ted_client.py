@@ -1,9 +1,8 @@
+import io
+import json
 from datetime import datetime, timedelta, timezone
 from email.message import Message
 from email.utils import format_datetime
-
-import io
-import json
 from unittest.mock import call, patch
 from urllib.error import HTTPError, URLError
 
@@ -37,9 +36,7 @@ def test_fetches_first_page_without_iteration_token() -> None:
     payload = json.loads(request.data)
 
     assert request.get_method() == "POST"
-    assert request.full_url == (
-        "https://api.ted.europa.eu/v3/notices/search"
-    )
+    assert request.full_url == ("https://api.ted.europa.eu/v3/notices/search")
     assert payload["query"] == "buyer-country = POL"
     assert payload["scope"] == "ALL"
     assert payload["paginationMode"] == "ITERATION"
@@ -151,9 +148,7 @@ def test_rejects_invalid_response_structure(
 def test_rejects_invalid_arguments_before_http_request(
     arguments: dict,
 ) -> None:
-    with patch(
-        "tender_intelligence.ted_client.urlopen"
-    ) as mocked_urlopen:
+    with patch("tender_intelligence.ted_client.urlopen") as mocked_urlopen:
         with pytest.raises(ValueError):
             fetch_search_page(**arguments)
 
@@ -176,6 +171,7 @@ def test_rejects_invalid_json() -> None:
     ):
         with pytest.raises(json.JSONDecodeError):
             fetch_search_page("buyer-country = POL")
+
 
 def http_error(
     status: int,

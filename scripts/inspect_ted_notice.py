@@ -1,11 +1,10 @@
 """Inspect selected XML fields in a single TED notice."""
 
+import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-import xml.etree.ElementTree as ET
-
 
 PUBLICATION_NUMBER = "124934-2026"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -45,11 +44,7 @@ def inspect_element(
     value = (element.text or "").strip()
 
     if name in SELECTED_FIELDS and value:
-        attributes = (
-            f" | attributes={element.attrib}"
-            if element.attrib
-            else ""
-        )
+        attributes = f" | attributes={element.attrib}" if element.attrib else ""
         lines.append(f"{path}\n  value={value}{attributes}")
 
     counts: Counter[str] = Counter()
@@ -70,10 +65,7 @@ def main() -> None:
         xml_bytes = xml_path.read_bytes()
         print(f"Using local XML: {xml_path}")
     else:
-        url = (
-            "https://ted.europa.eu/en/notice/"
-            f"{PUBLICATION_NUMBER}/xml"
-        )
+        url = f"https://ted.europa.eu/en/notice/{PUBLICATION_NUMBER}/xml"
         request = Request(
             url,
             headers={

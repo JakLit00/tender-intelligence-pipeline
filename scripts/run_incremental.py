@@ -42,9 +42,7 @@ def main() -> int:
         ).fetchone()
 
         if identity != ("tender_intelligence", "tender_app"):
-            raise RuntimeError(
-                "Expected the working database and tender_app role"
-            )
+            raise RuntimeError("Expected the working database and tender_app role")
 
         run_id = run_incremental(
             connection,

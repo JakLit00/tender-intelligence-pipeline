@@ -1,19 +1,13 @@
+from dataclasses import asdict
 from datetime import date
 from typing import Any, Literal
 
-from tender_intelligence.normalization import normalize_publication_number
-from tender_intelligence.models import PreparedNoticeBundle
-
-from dataclasses import asdict
-
+import psycopg
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
-import psycopg
-
-
-
-
+from tender_intelligence.models import PreparedNoticeBundle
+from tender_intelligence.normalization import normalize_publication_number
 
 UPSERT_NOTICE_SQL = """
 INSERT INTO staging.notices (
@@ -91,9 +85,7 @@ def save_prepared_notice(
 
     for lot in bundle.lots:
         if lot.publication_number != publication_number:
-            raise ValueError(
-                f"Lot {lot.lot_id!r} belongs to a different publication"
-            )
+            raise ValueError(f"Lot {lot.lot_id!r} belongs to a different publication")
 
         if lot.lot_id in lot_ids:
             raise ValueError(f"Duplicate lot ID: {lot.lot_id!r}")
@@ -122,6 +114,7 @@ def save_prepared_notice(
                     INSERT_LOT_SQL,
                     [asdict(lot) for lot in bundle.lots],
                 )
+
 
 def save_notice_xml(
     conn: psycopg.Connection,
@@ -170,6 +163,7 @@ def save_notice_xml(
             )
 
     return True
+
 
 def register_notice(
     connection: Connection,

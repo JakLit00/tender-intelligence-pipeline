@@ -6,12 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "scripts"
-    / "refresh_dashboard.py"
-)
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "refresh_dashboard.py"
 
 
 @pytest.fixture
@@ -48,10 +43,10 @@ def environment(tmp_path, monkeypatch, refresh_cli):
         lambda name: "/fake/node",
     )
 
-    dbt_executable = project_root / ".venv-dbt" / (
-        "Scripts/dbt.exe"
-        if refresh_cli.os.name == "nt"
-        else "bin/dbt"
+    dbt_executable = (
+        project_root
+        / ".venv-dbt"
+        / ("Scripts/dbt.exe" if refresh_cli.os.name == "nt" else "bin/dbt")
     )
     dbt_executable.parent.mkdir(parents=True)
     dbt_executable.touch()
@@ -118,9 +113,7 @@ def environment(tmp_path, monkeypatch, refresh_cli):
         write_candidate,
     )
 
-    commands = MagicMock(
-        return_value=subprocess.CompletedProcess([], 0)
-    )
+    commands = MagicMock(return_value=subprocess.CompletedProcess([], 0))
     monkeypatch.setattr(refresh_cli.subprocess, "run", commands)
 
     return SimpleNamespace(
@@ -135,9 +128,7 @@ def environment(tmp_path, monkeypatch, refresh_cli):
 
 def assert_previous_snapshot_preserved(environment):
     assert environment.destination.read_bytes() == environment.original
-    assert list(environment.destination.parent.iterdir()) == [
-        environment.destination
-    ]
+    assert list(environment.destination.parent.iterdir()) == [environment.destination]
 
 
 def test_replaces_snapshot_only_after_metric_validation(
@@ -155,10 +146,7 @@ def test_replaces_snapshot_only_after_metric_validation(
 
             assert candidate != environment.destination
             assert candidate.read_bytes() == environment.candidate_content
-            assert (
-                environment.destination.read_bytes()
-                == environment.original
-            )
+            assert environment.destination.read_bytes() == environment.original
 
         return subprocess.CompletedProcess(command, 0)
 
@@ -166,14 +154,9 @@ def test_replaces_snapshot_only_after_metric_validation(
 
     assert refresh_cli.main() == 0
 
-    assert (
-        environment.destination.read_bytes()
-        == environment.candidate_content
-    )
+    assert environment.destination.read_bytes() == environment.candidate_content
     assert environment.commands.call_count == 4
-    assert list(environment.destination.parent.iterdir()) == [
-        environment.destination
-    ]
+    assert list(environment.destination.parent.iterdir()) == [environment.destination]
 
 
 def test_preserves_snapshot_when_dbt_build_fails(

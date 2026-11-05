@@ -1,20 +1,16 @@
 import re
-from typing import Any
-
-from tender_intelligence.normalization import normalize_notice_id
-from tender_intelligence.ted_client import fetch_all_notices
-from tender_intelligence.models import PreparedNotice
-
 from dataclasses import dataclass
-
-from tender_intelligence.models import PreparedNoticeBundle
-from tender_intelligence.preparation import prepare_notice
-from tender_intelligence.ted_client import fetch_notice_xml
+from typing import Any
 
 from psycopg import Connection
 
+from tender_intelligence.models import PreparedNotice, PreparedNoticeBundle
+from tender_intelligence.normalization import normalize_notice_id
+from tender_intelligence.preparation import prepare_notice
 from tender_intelligence.processing import ProcessingOutcome, process_notice
 from tender_intelligence.storage import register_notice, save_notice_xml
+from tender_intelligence.ted_client import fetch_all_notices, fetch_notice_xml
+
 
 def find_notice_version(
     notice_id: str,
@@ -27,8 +23,7 @@ def find_notice_version(
 
     # Predecessors may fall outside the original date and business filters.
     query = (
-        f'notice-identifier = "{normalized_id}" '
-        f'AND notice-version = "{notice_version}"'
+        f'notice-identifier = "{normalized_id}" AND notice-version = "{notice_version}"'
     )
     notices = fetch_all_notices(query, page_size=10)
 
@@ -43,6 +38,7 @@ def find_notice_version(
 
     return notices[0]
 
+
 def validate_predecessor(
     current: PreparedNotice,
     predecessor: PreparedNotice,
@@ -51,10 +47,7 @@ def validate_predecessor(
         raise ValueError("A notice cannot be its own predecessor")
 
     if current.reference_type == "publication_number":
-        matches = (
-            current.previous_publication_number
-            == predecessor.publication_number
-        )
+        matches = current.previous_publication_number == predecessor.publication_number
     elif current.reference_type == "notice_version":
         matches = (
             current.previous_notice_id == predecessor.notice_id
@@ -73,6 +66,7 @@ def validate_predecessor(
         and current.procedure_id != predecessor.procedure_id
     ):
         raise ValueError("Predecessor belongs to a different procedure")
+
 
 @dataclass(frozen=True)
 class DownloadedPredecessor:
@@ -133,6 +127,7 @@ def download_predecessor(
         bundle=bundle,
     )
 
+
 def persist_predecessor(
     connection: Connection,
     predecessor: DownloadedPredecessor,
@@ -153,6 +148,7 @@ def persist_predecessor(
             predecessor.xml_content,
         )
         return process_notice(connection, notice.publication_number)
+
 
 def find_missing_predecessor_publications(
     connection: Connection,

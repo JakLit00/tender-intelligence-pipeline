@@ -1,14 +1,14 @@
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
 
-from tender_intelligence.predecessors import find_notice_version
-
-from dataclasses import replace
-
-from tender_intelligence.predecessors import validate_predecessor
+from tender_intelligence.predecessors import (
+    download_predecessor,
+    find_notice_version,
+    validate_predecessor,
+)
 from tender_intelligence.preparation import prepare_notice
-from tender_intelligence.predecessors import download_predecessor
 
 NOTICE_ID = "d7678430-ecb9-47e2-9a76-6c6f70962ff0"
 
@@ -60,6 +60,7 @@ def test_rejects_invalid_version_before_search(version):
             find_notice_version(NOTICE_ID, version)
 
     fetch.assert_not_called()
+
 
 @pytest.fixture
 def notice_pair(notice_xml):
@@ -167,6 +168,7 @@ def test_rejects_missing_reference(notice_pair):
     with pytest.raises(ValueError, match="no supported predecessor reference"):
         validate_predecessor(current, predecessor)
 
+
 @pytest.mark.parametrize(
     "reference_type",
     ["publication_number", "notice_version"],
@@ -193,14 +195,10 @@ def test_downloads_and_validates_predecessor(notice_xml, reference_type):
             else None
         ),
         previous_notice_id=(
-            predecessor.notice_id
-            if reference_type == "notice_version"
-            else None
+            predecessor.notice_id if reference_type == "notice_version" else None
         ),
         previous_notice_version=(
-            predecessor.notice_version
-            if reference_type == "notice_version"
-            else None
+            predecessor.notice_version if reference_type == "notice_version" else None
         ),
     )
     metadata = {"publication-number": "722762-2026"}

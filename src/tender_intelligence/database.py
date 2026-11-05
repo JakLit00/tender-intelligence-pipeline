@@ -40,6 +40,7 @@ def connect_database() -> psycopg.Connection:
         autocommit=True,
     )
 
+
 def connect_reporting_database() -> psycopg.Connection:
     """Open a reporting connection using the dedicated read-only role."""
     host = _required_env("APP_DB_HOST")

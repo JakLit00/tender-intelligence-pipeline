@@ -1,15 +1,16 @@
 """Test publication number normalization."""
 
+from datetime import date, datetime, timezone
+
 import pytest
 
-from datetime import date, datetime, timezone
 from tender_intelligence.normalization import (
     classify_changed_notice_reference,
     normalize_notice_id,
     normalize_notice_metadata,
     normalize_publication_number,
-    normalize_xml_date,
     normalize_submission_deadline,
+    normalize_xml_date,
 )
 
 
@@ -41,6 +42,7 @@ def test_rejects_invalid_publication_numbers(raw_value):
     # UUID references require separate handling, not publication normalization.
     with pytest.raises(ValueError, match="Invalid publication number"):
         normalize_publication_number(raw_value)
+
 
 def test_classifies_publication_reference_and_preserves_original():
     assert classify_changed_notice_reference("00706539-2026") == {
@@ -78,6 +80,7 @@ def test_preserves_unresolved_reference(value):
         "notice_id": None,
         "notice_version": None,
     }
+
 
 @pytest.mark.parametrize("version", ["01", "02", "12"])
 def test_classifies_notice_uuid_with_version(version):
@@ -123,6 +126,7 @@ def test_keeps_unsupported_uuid_references_unresolved(raw_value):
         "notice_version": None,
     }
 
+
 def test_metadata_and_reference_use_the_same_normalized_uuid():
     original_id = "755DB7F6-6AA1-453B-9087-1DF5F7725112"
     metadata = {
@@ -158,6 +162,7 @@ def test_metadata_normalization_requires_notice_id():
     with pytest.raises(ValueError, match="Missing notice identifier"):
         normalize_notice_metadata({"notice_id": None})
 
+
 @pytest.mark.parametrize(
     "value",
     [
@@ -192,6 +197,7 @@ def test_xml_date_accepts_leap_day():
 def test_xml_date_rejects_invalid_or_unsupported_values(value):
     with pytest.raises(ValueError, match="Invalid XML date"):
         normalize_xml_date(value)
+
 
 @pytest.mark.parametrize(
     ("date_raw", "time_raw"),
@@ -245,12 +251,8 @@ def test_deadline_rejects_invalid_time(time_raw):
 
 
 def test_deadline_handles_offset_change_between_publications():
-    _, previous = normalize_submission_deadline(
-        "2026-10-22+02:00", "09:00:00+02:00"
-    )
-    _, current = normalize_submission_deadline(
-        "2026-11-03+01:00", "09:00:00+01:00"
-    )
+    _, previous = normalize_submission_deadline("2026-10-22+02:00", "09:00:00+02:00")
+    _, current = normalize_submission_deadline("2026-11-03+01:00", "09:00:00+01:00")
 
     assert previous is not None
     assert current is not None

@@ -13,7 +13,6 @@ from tender_intelligence.models import (
 )
 from tender_intelligence.storage import save_prepared_notice
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PUBLICATION_NUMBER = "999999-2099"
 
@@ -69,9 +68,7 @@ def main() -> None:
         submission_deadline_date_raw="2099-02-01Z",
         submission_deadline_time_raw="09:00:00Z",
         submission_deadline_local_date=date(2099, 2, 1),
-        submission_deadline_at=datetime(
-            2099, 2, 1, 9, 0, tzinfo=timezone.utc
-        ),
+        submission_deadline_at=datetime(2099, 2, 1, 9, 0, tzinfo=timezone.utc),
     )
     second_lot = replace(first_lot, lot_id="LOT-0002")
     bundle = PreparedNoticeBundle(

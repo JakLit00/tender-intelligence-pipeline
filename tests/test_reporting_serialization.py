@@ -1,12 +1,12 @@
 import json
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
 
 from tender_intelligence.reporting import serialize_dashboard_snapshot
 
-from uuid import UUID
 
 def test_serializes_dates_numbers_and_missing_values():
     snapshot = {
@@ -38,7 +38,10 @@ def test_serializes_dates_numbers_and_missing_values():
 
 def test_converts_timestamp_to_utc():
     local_time = datetime(
-        2026, 11, 3, 9,
+        2026,
+        11,
+        3,
+        9,
         tzinfo=timezone(timedelta(hours=1)),
     )
 
@@ -49,10 +52,7 @@ def test_converts_timestamp_to_utc():
         )
     )
 
-    assert (
-        result["observations"][0]["current_deadline_at"]
-        == "2026-11-03T08:00:00Z"
-    )
+    assert result["observations"][0]["current_deadline_at"] == "2026-11-03T08:00:00Z"
 
 
 def test_rejects_timestamp_without_timezone():
@@ -82,6 +82,7 @@ def test_preserves_polish_characters():
     )
 
     assert "Urząd Łódź" in result
+
 
 def test_serializes_uuid_as_text():
     procedure_id = "4835bb55-6b3a-4579-81d8-b34df3e663ce"

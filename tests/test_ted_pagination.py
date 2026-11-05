@@ -12,10 +12,7 @@ def make_page(
     token: str | None = None,
 ) -> dict:
     return {
-        "notices": [
-            {"publication-number": number}
-            for number in numbers
-        ],
+        "notices": [{"publication-number": number} for number in numbers],
         "totalNoticeCount": total,
         "iterationNextToken": token,
         "timedOut": False,

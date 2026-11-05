@@ -9,7 +9,6 @@ from tender_intelligence.preparation import prepare_notice
 from tender_intelligence.processing import process_notice
 from tender_intelligence.storage import register_notice, save_notice_xml
 
-
 CURRENT_PUBLICATION = "722762-2026"
 PREVIOUS_PUBLICATION = "706539-2026"
 
@@ -34,8 +33,7 @@ def seed_notice(connection, xml_content, publication_number):
 def predecessor_document(notice_xml):
     # Change the predecessor reference before replacing the document number.
     xml_content = (
-        notice_xml
-        .replace(b"706539-2026", b"668566-2026")
+        notice_xml.replace(b"706539-2026", b"668566-2026")
         .replace(b"722762-2026", b"706539-2026")
         .replace(
             b"8ac273c6-7603-4ad1-b9a2-8ed027ed773f",

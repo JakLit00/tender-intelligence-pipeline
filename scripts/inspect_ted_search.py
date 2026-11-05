@@ -4,7 +4,6 @@ from pprint import pprint
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SEARCH_URL = "https://api.ted.europa.eu/v3/notices/search"
 

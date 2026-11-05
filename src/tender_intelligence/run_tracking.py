@@ -1,9 +1,9 @@
 from datetime import date
 from typing import Literal
-from tender_intelligence.normalization import normalize_publication_number
 
 import psycopg
 
+from tender_intelligence.normalization import normalize_publication_number
 
 RunMode = Literal["backfill", "incremental", "retry", "history"]
 
@@ -45,6 +45,7 @@ def start_run(
 
     return run_id
 
+
 def link_run_notice(
     conn: psycopg.Connection,
     *,
@@ -85,6 +86,7 @@ def link_run_notice(
                 """,
                 (run_id, publication_number),
             )
+
 
 NoticeOutcome = Literal["processed", "skipped", "failed"]
 
@@ -150,6 +152,7 @@ def record_notice_outcome(
                     f"to pipeline run {run_id}"
                 )
 
+
 RunStatus = Literal["succeeded", "partial", "failed"]
 
 
@@ -198,9 +201,7 @@ def finish_run(
             total_count, pending_count, failed_count = counts
 
             if pending_count:
-                raise ValueError(
-                    f"Pipeline run {run_id} has pending publications"
-                )
+                raise ValueError(f"Pipeline run {run_id} has pending publications")
 
             status: RunStatus
             error_message = None
@@ -213,9 +214,7 @@ def finish_run(
                 status = "partial"
 
             if failed_count:
-                error_message = (
-                    f"{failed_count} of {total_count} publications failed"
-                )
+                error_message = f"{failed_count} of {total_count} publications failed"
 
             cursor.execute(
                 """
@@ -229,6 +228,7 @@ def finish_run(
             )
 
     return status
+
 
 def fail_run(
     conn: psycopg.Connection,

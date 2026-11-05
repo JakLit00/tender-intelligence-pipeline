@@ -9,12 +9,12 @@ from tender_intelligence.models import (
     ReferenceType,
 )
 from tender_intelligence.normalization import (
+    DeadlineTimezoneConflict,
     classify_changed_notice_reference,
     normalize_notice_id,
     normalize_publication_number,
     normalize_submission_deadline,
     normalize_xml_date,
-    DeadlineTimezoneConflict,
 )
 from tender_intelligence.xml_parser import (
     parse_notice_lots,
@@ -43,9 +43,7 @@ def prepare_notice(
             "publication_number",
         )
     )
-    expected_number = normalize_publication_number(
-        expected_publication_number
-    )
+    expected_number = normalize_publication_number(expected_publication_number)
 
     if publication_number != expected_number:
         raise ValueError(
@@ -53,12 +51,8 @@ def prepare_notice(
             f"expected {expected_number}, got {publication_number}"
         )
 
-    notice_id = normalize_notice_id(
-        _required_text(metadata["notice_id"], "notice_id")
-    )
-    notice_version = _required_text(
-        metadata["notice_version"], "notice_version"
-    )
+    notice_id = normalize_notice_id(_required_text(metadata["notice_id"], "notice_id"))
+    notice_version = _required_text(metadata["notice_version"], "notice_version")
 
     if re.fullmatch(r"[0-9]{2}", notice_version) is None:
         raise ValueError(f"Invalid notice version: {notice_version!r}")
@@ -70,13 +64,9 @@ def prepare_notice(
         try:
             procedure_id = str(UUID(procedure_id_raw.strip()))
         except ValueError as exc:
-            raise ValueError(
-                f"Invalid procedure ID: {procedure_id_raw!r}"
-            ) from exc
+            raise ValueError(f"Invalid procedure ID: {procedure_id_raw!r}") from exc
 
-    notice_type = _required_text(
-        metadata["notice_type"], "notice_type"
-    )
+    notice_type = _required_text(metadata["notice_type"], "notice_type")
     publication_date = normalize_xml_date(
         _required_text(
             metadata["publication_date_raw"],
@@ -95,9 +85,7 @@ def prepare_notice(
         "notice_version",
         "unresolved",
     ):
-        raise ValueError(
-            f"Unexpected reference type: {reference_type!r}"
-        )
+        raise ValueError(f"Unexpected reference type: {reference_type!r}")
 
     notice = PreparedNotice(
         publication_number=publication_number,
@@ -139,12 +127,8 @@ def prepare_notice(
             PreparedLot(
                 publication_number=publication_number,
                 lot_id=_required_text(raw_lot["lot_id"], "lot_id"),
-                submission_deadline_date_raw=(
-                    raw_lot["submission_deadline_date_raw"]
-                ),
-                submission_deadline_time_raw=(
-                    raw_lot["submission_deadline_time_raw"]
-                ),
+                submission_deadline_date_raw=(raw_lot["submission_deadline_date_raw"]),
+                submission_deadline_time_raw=(raw_lot["submission_deadline_time_raw"]),
                 submission_deadline_local_date=local_date,
                 submission_deadline_at=deadline_at,
                 submission_deadline_quality_issue=quality_issue,

@@ -6,7 +6,6 @@ from tender_intelligence.preparation import prepare_notice
 from tender_intelligence.processing import process_notice
 from tender_intelligence.storage import save_prepared_notice
 
-
 PUBLICATION_NUMBER = "722762-2026"
 
 
@@ -91,9 +90,7 @@ def test_processes_notice_and_records_success(
 ) -> None:
     assert process_notice(db_connection, raw_notice) == "processed"
 
-    status, processed_at, last_error = read_status(
-        db_connection, raw_notice
-    )
+    status, processed_at, last_error = read_status(db_connection, raw_notice)
     assert status == "succeeded"
     assert processed_at is not None
     assert last_error is None
@@ -163,9 +160,7 @@ def test_failed_reprocessing_preserves_previous_staging(
     )
     assert outcome == "failed"
 
-    status, processed_at, last_error = read_status(
-        db_connection, raw_notice
-    )
+    status, processed_at, last_error = read_status(db_connection, raw_notice)
     assert status == "failed"
     assert processed_at is None
     assert last_error.startswith("ParseError:")
@@ -200,9 +195,7 @@ def test_retries_failed_notice_and_clears_error(
 
     assert process_notice(db_connection, raw_notice) == "processed"
 
-    status, processed_at, last_error = read_status(
-        db_connection, raw_notice
-    )
+    status, processed_at, last_error = read_status(db_connection, raw_notice)
     assert status == "succeeded"
     assert processed_at is not None
     assert last_error is None
@@ -243,14 +236,12 @@ def test_database_failure_rolls_back_staging_and_status(
         read_staging(db_connection, raw_notice),
     ) == before
 
+
 def test_unsupported_xml_encoding_records_failure(
     db_connection: psycopg.Connection,
     raw_notice: str,
 ) -> None:
-    xml_content = (
-        b'<?xml version="1.0" encoding="UNKNOWN"?>'
-        b"<ContractNotice/>"
-    )
+    xml_content = b'<?xml version="1.0" encoding="UNKNOWN"?><ContractNotice/>'
 
     db_connection.execute(
         """
@@ -263,13 +254,12 @@ def test_unsupported_xml_encoding_records_failure(
 
     assert process_notice(db_connection, raw_notice) == "failed"
 
-    status, processed_at, last_error = read_status(
-        db_connection, raw_notice
-    )
+    status, processed_at, last_error = read_status(db_connection, raw_notice)
     assert status == "failed"
     assert processed_at is None
     assert last_error == "ValueError: Unsupported XML encoding"
     assert read_staging(db_connection, raw_notice) == ([], [])
+
 
 def test_processes_notice_with_conflicting_deadline_offsets(
     db_connection: psycopg.Connection,
@@ -292,9 +282,7 @@ def test_processes_notice_with_conflicting_deadline_offsets(
 
     assert process_notice(db_connection, raw_notice) == "processed"
 
-    status, processed_at, last_error = read_status(
-        db_connection, raw_notice
-    )
+    status, processed_at, last_error = read_status(db_connection, raw_notice)
     assert status == "succeeded"
     assert processed_at is not None
     assert last_error is None

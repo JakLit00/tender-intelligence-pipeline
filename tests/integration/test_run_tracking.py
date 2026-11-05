@@ -76,6 +76,7 @@ def test_rejects_unknown_run_mode(
             date_to=date(2026, 10, 29),
         )
 
+
 def test_links_notice_without_resetting_existing_outcome(
     db_connection: psycopg.Connection,
 ) -> None:
@@ -188,6 +189,7 @@ def test_rejects_link_to_missing_publication(
             run_id=run_id,
             publication_number="999997-2099",
         )
+
 
 @pytest.fixture
 def linked_notice_run(db_connection: psycopg.Connection) -> int:
@@ -317,6 +319,7 @@ def test_rejects_outcome_for_finished_run(
             outcome="processed",
         )
 
+
 @pytest.mark.parametrize(
     ("outcome", "expected_status"),
     [
@@ -339,9 +342,7 @@ def test_finishes_run_from_notice_outcome(
         error_message="Invalid XML" if outcome == "failed" else None,
     )
 
-    assert finish_run(
-        db_connection, run_id=linked_notice_run
-    ) == expected_status
+    assert finish_run(db_connection, run_id=linked_notice_run) == expected_status
 
     row = db_connection.execute(
         """
@@ -352,9 +353,7 @@ def test_finishes_run_from_notice_outcome(
         (linked_notice_run,),
     ).fetchone()
 
-    expected_error = (
-        "1 of 1 publications failed" if outcome == "failed" else None
-    )
+    expected_error = "1 of 1 publications failed" if outcome == "failed" else None
     assert row == (expected_status, True, expected_error)
 
 
@@ -420,9 +419,7 @@ def test_finishes_mixed_results_as_partial(
         error_message="Download failed",
     )
 
-    assert finish_run(
-        db_connection, run_id=linked_notice_run
-    ) == "partial"
+    assert finish_run(db_connection, run_id=linked_notice_run) == "partial"
 
     row = db_connection.execute(
         """
@@ -449,6 +446,7 @@ def test_cannot_finish_run_twice(
 
     with pytest.raises(ValueError, match="already finished"):
         finish_run(db_connection, run_id=run_id)
+
 
 @pytest.mark.parametrize(
     ("outcome", "notice_error"),
@@ -577,6 +575,7 @@ def test_cannot_fail_missing_run(
             run_id=-1,
             error_message="Search request failed",
         )
+
 
 def test_starts_history_run(db_connection):
     run_id = start_run(

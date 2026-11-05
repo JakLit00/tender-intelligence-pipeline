@@ -31,9 +31,7 @@ def test_prepares_normalized_fields_and_preserves_metadata() -> None:
     assert source == original
 
     source["buyer-name"]["pol"].append("Another buyer")
-    assert row["search_metadata"]["buyer-name"]["pol"] == [
-        "Example buyer"
-    ]
+    assert row["search_metadata"]["buyer-name"]["pol"] == ["Example buyer"]
 
 
 def test_empty_batch_has_expected_columns() -> None:

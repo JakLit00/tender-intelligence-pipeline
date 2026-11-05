@@ -38,11 +38,14 @@ def test_rechecks_overlap_when_already_caught_up():
 
 
 def test_returns_none_when_no_complete_day_is_available():
-    assert calculate_incremental_window(
-        initial_date=date(2026, 11, 4),
-        last_successful_date=None,
-        today=date(2026, 11, 4),
-    ) is None
+    assert (
+        calculate_incremental_window(
+            initial_date=date(2026, 11, 4),
+            last_successful_date=None,
+            today=date(2026, 11, 4),
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("overlap_days", [0, -1, True])

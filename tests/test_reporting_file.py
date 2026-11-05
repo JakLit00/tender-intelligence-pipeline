@@ -6,7 +6,6 @@ import pytest
 
 from tender_intelligence.reporting import write_dashboard_snapshot
 
-
 GENERATED_AT = datetime(2026, 11, 5, 12, tzinfo=UTC)
 
 

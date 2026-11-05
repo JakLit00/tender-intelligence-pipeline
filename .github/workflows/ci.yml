@@ -65,6 +65,11 @@ jobs:
           .venv/bin/python -m pip install -e ".[dev]"
           .venv/bin/python -m pip check
 
+      - name: Check Python lint and formatting
+        run: |
+          .venv/bin/python -m ruff check src scripts tests
+          .venv/bin/python -m ruff format src scripts tests --check
+
       - name: Install dbt
         run: |
           python -m venv .venv-dbt

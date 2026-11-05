@@ -19,7 +19,6 @@ from tender_intelligence.run_tracking import (
     start_run,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -36,9 +35,7 @@ def run_history(
         not connection.autocommit
         or connection.info.transaction_status != TransactionStatus.IDLE
     ):
-        raise ValueError(
-            "History requires an idle connection with autocommit enabled"
-        )
+        raise ValueError("History requires an idle connection with autocommit enabled")
 
     missing = find_missing_predecessor_publications(connection)
     if not missing:
@@ -152,9 +149,7 @@ def run_history(
                     ).fetchone()
 
                     if error_row is None or not error_row[0]:
-                        raise RuntimeError(
-                            "Failed predecessor has no recorded error"
-                        )
+                        raise RuntimeError("Failed predecessor has no recorded error")
                     error_message = error_row[0]
 
                 record_notice_outcome(
