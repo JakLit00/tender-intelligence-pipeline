@@ -4,7 +4,6 @@ import re
 from datetime import date, datetime, time
 from uuid import UUID
 
-
 PUBLICATION_NUMBER_PATTERN = re.compile(r"([0-9]{1,8})-([0-9]{4})")
 
 NOTICE_VERSION_REFERENCE_PATTERN = re.compile(
@@ -24,8 +23,10 @@ XML_TIME_PATTERN = re.compile(
     r"(?:Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?"
 )
 
+
 class DeadlineTimezoneConflict(ValueError):
     """The deadline date and time specify different UTC offsets."""
+
 
 def normalize_publication_number(value: str) -> str:
     """Normalize a TED publication number to an unpadded number-year."""
@@ -43,16 +44,20 @@ def normalize_publication_number(value: str) -> str:
     # Remove padding only from the numeric part, preserving the year.
     return f"{number}-{year}"
 
+
 def normalize_notice_id(value: str) -> str:
     """Validate a canonical UUID v4 shape and normalize its letter case."""
     text = value.strip()
 
     # UUID() also accepts compact and braced forms; keep our input contract strict.
-    if re.fullmatch(
-        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
-        text,
-    ) is None:
+    if (
+        re.fullmatch(
+            r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+            r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            text,
+        )
+        is None
+    ):
         raise ValueError(f"Invalid notice identifier: {value!r}")
 
     notice_id = UUID(text)
@@ -75,6 +80,7 @@ def normalize_notice_metadata(
     normalized = metadata.copy()
     normalized["notice_id"] = normalize_notice_id(notice_id)
     return normalized
+
 
 def classify_changed_notice_reference(
     value: str | None,
@@ -123,6 +129,7 @@ def classify_changed_notice_reference(
     result["reference_type"] = "unresolved"
     return result
 
+
 def normalize_xml_date(value: str) -> date:
     """Extract a calendar date from the supported XML date format."""
     match = XML_DATE_PATTERN.fullmatch(value.strip())
@@ -135,6 +142,7 @@ def normalize_xml_date(value: str) -> date:
         return date.fromisoformat(match.group("date"))
     except ValueError as exc:
         raise ValueError(f"Invalid XML date: {value!r}") from exc
+
 
 def normalize_submission_deadline(
     date_raw: str | None,
@@ -157,9 +165,7 @@ def normalize_submission_deadline(
         offset = date_match.group("offset")
 
         if offset is not None:
-            date_timezone = time.fromisoformat(
-                f"00:00:00{offset}"
-            ).tzinfo
+            date_timezone = time.fromisoformat(f"00:00:00{offset}").tzinfo
 
     if time_text:
         if XML_TIME_PATTERN.fullmatch(time_text) is None:
@@ -180,9 +186,7 @@ def normalize_submission_deadline(
         and time_timezone is not None
         and date_timezone != time_timezone
     ):
-        raise DeadlineTimezoneConflict(
-            "Conflicting deadline timezone offsets"
-        )
+        raise DeadlineTimezoneConflict("Conflicting deadline timezone offsets")
 
     deadline_timezone = time_timezone or date_timezone
 

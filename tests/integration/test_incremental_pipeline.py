@@ -1,11 +1,10 @@
 from datetime import date
 from unittest.mock import patch
-
-from tender_intelligence.pipeline import run_incremental
-
 from urllib.error import URLError
 
 import pytest
+
+from tender_intelligence.pipeline import run_incremental
 
 
 def test_incremental_records_first_range_and_then_uses_overlap(
@@ -84,6 +83,7 @@ def test_incremental_creates_no_run_when_no_complete_day_is_available(
         "SELECT count(*) FROM ops.pipeline_runs"
     ).fetchone()
     assert row == (0,)
+
 
 def test_incremental_retries_range_after_search_failure(
     pipeline_connection,

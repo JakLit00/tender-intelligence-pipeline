@@ -19,6 +19,4 @@ def test_application_role_has_required_table_permissions(
                 (table_name, privilege),
             ).fetchone()
 
-            assert row == (True,), (
-                f"Missing {privilege} permission on {table_name}"
-            )
+            assert row == (True,), f"Missing {privilege} permission on {table_name}"

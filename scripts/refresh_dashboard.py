@@ -20,7 +20,6 @@ from tender_intelligence.reporting import (
     write_dashboard_snapshot,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -70,8 +69,10 @@ def main() -> int:
         if node is None:
             raise RuntimeError("Node.js was not found in PATH")
 
-        dbt_executable = project_root / ".venv-dbt" / (
-            "Scripts/dbt.exe" if os.name == "nt" else "bin/dbt"
+        dbt_executable = (
+            project_root
+            / ".venv-dbt"
+            / ("Scripts/dbt.exe" if os.name == "nt" else "bin/dbt")
         )
         if not dbt_executable.is_file():
             raise FileNotFoundError("dbt executable not found in .venv-dbt")
@@ -116,9 +117,7 @@ def main() -> int:
             ).fetchone()
 
             if identity != ("tender_intelligence", "tender_app"):
-                raise RuntimeError(
-                    "Expected the working database and tender_app role"
-                )
+                raise RuntimeError("Expected the working database and tender_app role")
 
             result = refresh_ingestion(
                 connection,

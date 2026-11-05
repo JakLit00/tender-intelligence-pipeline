@@ -1,10 +1,11 @@
 import json
-from typing import Any
-from urllib.request import Request, urlopen
 import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from typing import Any
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
 from tender_intelligence.normalization import normalize_publication_number
 
 SEARCH_URL = "https://api.ted.europa.eu/v3/notices/search"
@@ -54,10 +55,7 @@ def _request_bytes(request: Request) -> bytes:
             with urlopen(request, timeout=30) as response:
                 return response.read()
         except HTTPError as exc:
-            if (
-                exc.code not in RETRYABLE_HTTP_CODES
-                or attempt == MAX_ATTEMPTS
-            ):
+            if exc.code not in RETRYABLE_HTTP_CODES or attempt == MAX_ATTEMPTS:
                 raise
 
             delay = _retry_delay(
@@ -73,6 +71,7 @@ def _request_bytes(request: Request) -> bytes:
             time.sleep(delay)
 
     raise RuntimeError("Search request attempts exhausted")
+
 
 def fetch_search_page(
     query: str,
@@ -138,6 +137,7 @@ def fetch_search_page(
 
     return result
 
+
 def fetch_all_notices(
     query: str,
     *,
@@ -162,9 +162,7 @@ def fetch_all_notices(
         if expected_total is None:
             expected_total = total_count
         elif total_count != expected_total:
-            raise ValueError(
-                "TED result count changed during pagination"
-            )
+            raise ValueError("TED result count changed during pagination")
 
         page_notices = page["notices"]
 
@@ -181,39 +179,33 @@ def fetch_all_notices(
 
             if publication_number in seen_publications:
                 raise ValueError(
-                    f"Repeated publication during pagination: "
-                    f"{publication_number}"
+                    f"Repeated publication during pagination: {publication_number}"
                 )
 
             seen_publications.add(publication_number)
             notices.append(notice)
 
         if len(notices) > expected_total:
-            raise ValueError(
-                "Received more notices than the reported total"
-            )
+            raise ValueError("Received more notices than the reported total")
 
         # A final response may still carry a token; use the count to finish.
         if len(notices) == expected_total:
             return notices
 
         if not page_notices:
-            raise ValueError(
-                "Received an empty page before collecting all notices"
-            )
+            raise ValueError("Received an empty page before collecting all notices")
 
         next_token = page.get("iterationNextToken")
 
         if not isinstance(next_token, str) or not next_token.strip():
-            raise ValueError(
-                "Missing iteration token before collecting all notices"
-            )
+            raise ValueError("Missing iteration token before collecting all notices")
 
         if next_token in seen_tokens:
             raise ValueError("Repeated iteration token during pagination")
 
         seen_tokens.add(next_token)
         iteration_token = next_token
+
 
 def fetch_notice_xml(publication_number: str) -> bytes:
     """Download the original XML bytes for a TED publication."""
@@ -231,8 +223,6 @@ def fetch_notice_xml(publication_number: str) -> bytes:
     xml_content = _request_bytes(request)
 
     if not xml_content.strip():
-        raise ValueError(
-            f"TED returned an empty XML response: {publication_number}"
-        )
+        raise ValueError(f"TED returned an empty XML response: {publication_number}")
 
     return xml_content

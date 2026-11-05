@@ -2,7 +2,6 @@ from tender_intelligence.predecessors import download_predecessor
 from tender_intelligence.preparation import prepare_notice
 from tender_intelligence.ted_client import fetch_notice_xml
 
-
 PUBLICATION_NUMBERS = (
     "722762-2026",
     "724862-2026",
@@ -22,9 +21,7 @@ def main() -> None:
         result = download_predecessor(current)
 
         if result is None:
-            raise ValueError(
-                f"Expected a predecessor for {publication_number}"
-            )
+            raise ValueError(f"Expected a predecessor for {publication_number}")
 
         predecessor = result.bundle.notice
         print(

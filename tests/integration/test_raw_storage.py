@@ -54,9 +54,7 @@ def test_stores_first_xml(
     pending_notice: str,
     notice_xml: bytes,
 ) -> None:
-    assert save_notice_xml(
-        db_connection, pending_notice, notice_xml
-    ) is True
+    assert save_notice_xml(db_connection, pending_notice, notice_xml) is True
 
     xml, downloaded_at, status, processed_at, error = read_raw(
         db_connection, pending_notice
@@ -77,9 +75,7 @@ def test_identical_xml_preserves_successful_result(
     assert process_notice(db_connection, pending_notice) == "processed"
     before = read_raw(db_connection, pending_notice)
 
-    assert save_notice_xml(
-        db_connection, pending_notice, notice_xml
-    ) is False
+    assert save_notice_xml(db_connection, pending_notice, notice_xml) is False
 
     assert read_raw(db_connection, pending_notice) == before
 
@@ -98,9 +94,7 @@ def test_changed_xml_requires_processing_after_success(
     )
     assert changed_xml != notice_xml
 
-    assert save_notice_xml(
-        db_connection, pending_notice, changed_xml
-    ) is True
+    assert save_notice_xml(db_connection, pending_notice, changed_xml) is True
 
     xml, downloaded_at, status, processed_at, error = read_raw(
         db_connection, pending_notice
@@ -134,9 +128,7 @@ def test_identical_failed_xml_still_requires_processing(
     assert process_notice(db_connection, pending_notice) == "failed"
     before = read_raw(db_connection, pending_notice)
 
-    assert save_notice_xml(
-        db_connection, pending_notice, invalid_xml
-    ) is True
+    assert save_notice_xml(db_connection, pending_notice, invalid_xml) is True
 
     assert read_raw(db_connection, pending_notice) == before
 
@@ -149,13 +141,9 @@ def test_changed_xml_clears_previous_error(
     save_notice_xml(db_connection, pending_notice, b"<broken")
     assert process_notice(db_connection, pending_notice) == "failed"
 
-    assert save_notice_xml(
-        db_connection, pending_notice, notice_xml
-    ) is True
+    assert save_notice_xml(db_connection, pending_notice, notice_xml) is True
 
-    xml, _, status, processed_at, error = read_raw(
-        db_connection, pending_notice
-    )
+    xml, _, status, processed_at, error = read_raw(db_connection, pending_notice)
     assert xml == notice_xml
     assert status == "pending"
     assert processed_at is None

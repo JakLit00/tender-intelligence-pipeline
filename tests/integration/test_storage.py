@@ -37,9 +37,7 @@ def prepared_bundle(
         submission_deadline_date_raw="2099-02-01Z",
         submission_deadline_time_raw="09:00:00Z",
         submission_deadline_local_date=date(2099, 2, 1),
-        submission_deadline_at=datetime(
-            2099, 2, 1, 9, 0, tzinfo=timezone.utc
-        ),
+        submission_deadline_at=datetime(2099, 2, 1, 9, 0, tzinfo=timezone.utc),
     )
 
     db_connection.execute(

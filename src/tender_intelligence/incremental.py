@@ -1,5 +1,7 @@
 from datetime import date, timedelta
+
 from psycopg import Connection
+
 
 def calculate_incremental_window(
     *,
@@ -32,6 +34,7 @@ def calculate_incremental_window(
     )
 
     return date_from, date_to
+
 
 def get_last_successful_date(
     connection: Connection,

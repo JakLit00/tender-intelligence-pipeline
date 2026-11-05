@@ -31,6 +31,7 @@ def db_connection() -> Iterator[psycopg.Connection]:
         with conn.transaction(force_rollback=True):
             yield conn
 
+
 @pytest.fixture
 def pipeline_connection() -> Iterator[psycopg.Connection]:
     def clear_test_data() -> None:

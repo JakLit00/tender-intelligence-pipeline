@@ -9,10 +9,7 @@ from tender_intelligence.ted_client import fetch_notice_xml
 
 
 def test_downloads_original_bytes_using_normalized_number() -> None:
-    xml_content = (
-        b'<?xml version="1.0" encoding="ISO-8859-1"?>'
-        b"<notice>caf\xe9</notice>"
-    )
+    xml_content = b'<?xml version="1.0" encoding="ISO-8859-1"?><notice>caf\xe9</notice>'
 
     with patch(
         "tender_intelligence.ted_client.urlopen",
@@ -25,9 +22,7 @@ def test_downloads_original_bytes_using_normalized_number() -> None:
 
     request = mocked_urlopen.call_args.args[0]
     assert request.get_method() == "GET"
-    assert request.full_url == (
-        "https://ted.europa.eu/en/notice/722762-2026/xml"
-    )
+    assert request.full_url == ("https://ted.europa.eu/en/notice/722762-2026/xml")
     assert request.get_header("Accept") == "application/xml"
     assert mocked_urlopen.call_args.kwargs["timeout"] == 30
 
@@ -43,9 +38,7 @@ def test_rejects_empty_xml_response(content: bytes) -> None:
 
 
 def test_rejects_invalid_publication_before_request() -> None:
-    with patch(
-        "tender_intelligence.ted_client.urlopen"
-    ) as mocked_urlopen:
+    with patch("tender_intelligence.ted_client.urlopen") as mocked_urlopen:
         with pytest.raises(ValueError, match="Invalid publication number"):
             fetch_notice_xml("invalid")
 

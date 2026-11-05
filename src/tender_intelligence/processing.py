@@ -7,7 +7,6 @@ from tender_intelligence.normalization import normalize_publication_number
 from tender_intelligence.preparation import prepare_notice
 from tender_intelligence.storage import save_prepared_notice
 
-
 ProcessingOutcome = Literal["processed", "skipped", "failed"]
 
 
@@ -45,9 +44,7 @@ def process_notice(
                 return "skipped"
 
             if xml_content is None:
-                raise ValueError(
-                    f"XML has not been downloaded: {publication_number}"
-                )
+                raise ValueError(f"XML has not been downloaded: {publication_number}")
 
             try:
                 bundle = prepare_notice(
@@ -56,10 +53,7 @@ def process_notice(
                 )
             except (ValueError, ParseError) as exc:
                 # PostgreSQL text cannot store NUL characters from invalid input.
-                error_message = (
-                    f"{type(exc).__name__}: {exc}"
-                    .replace("\x00", "\\x00")
-                )
+                error_message = f"{type(exc).__name__}: {exc}".replace("\x00", "\\x00")
 
                 cursor.execute(
                     """

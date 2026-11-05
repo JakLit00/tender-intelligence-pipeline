@@ -1,14 +1,13 @@
 from pathlib import Path
-
 from unittest.mock import patch
 
 import psycopg
 from dotenv import load_dotenv
 
 from tender_intelligence.database import connect_database
+from tender_intelligence.models import PreparedNoticeBundle
 from tender_intelligence.preparation import prepare_notice
 from tender_intelligence.processing import process_notice
-from tender_intelligence.models import PreparedNoticeBundle
 from tender_intelligence.storage import save_prepared_notice
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +52,7 @@ def read_staging(conn: psycopg.Connection) -> tuple:
 
     return notice_rows, lot_rows
 
+
 def save_then_fail(
     conn: psycopg.Connection,
     bundle: PreparedNoticeBundle,
@@ -62,6 +62,7 @@ def save_then_fail(
     # Fail after staging writes to verify the outer transaction rolls them back.
     conn.execute("SELECT 1 / 0")
 
+
 def main() -> None:
     load_dotenv(
         PROJECT_ROOT / ".env",
@@ -69,12 +70,7 @@ def main() -> None:
         interpolate=False,
     )
 
-    xml_path = (
-        PROJECT_ROOT
-        / "data"
-        / "inspection"
-        / f"{PUBLICATION_NUMBER}.xml"
-    )
+    xml_path = PROJECT_ROOT / "data" / "inspection" / f"{PUBLICATION_NUMBER}.xml"
     xml_content = xml_path.read_bytes()
     prepared = prepare_notice(
         xml_content,

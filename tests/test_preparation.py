@@ -153,7 +153,4 @@ def test_preserves_conflicting_deadline_as_quality_issue(
     assert lot.submission_deadline_time_raw == "09:00:00+01:00"
     assert lot.submission_deadline_local_date == date(2026, 11, 3)
     assert lot.submission_deadline_at is None
-    assert (
-        lot.submission_deadline_quality_issue
-        == "conflicting_timezone_offsets"
-    )
+    assert lot.submission_deadline_quality_issue == "conflicting_timezone_offsets"

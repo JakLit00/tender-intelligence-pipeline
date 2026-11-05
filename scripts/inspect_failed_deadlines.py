@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from tender_intelligence.database import connect_database
 from tender_intelligence.xml_parser import parse_notice_lots
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RUN_ID = 5
 

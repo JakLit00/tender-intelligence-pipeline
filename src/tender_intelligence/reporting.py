@@ -1,19 +1,17 @@
+import json
+import math
+import os
+import tempfile
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import psycopg
 from psycopg.pq import TransactionStatus
 from psycopg.rows import dict_row
 
-import json
-import math
-from datetime import UTC, date, datetime
-from decimal import Decimal
-
-import os
-import tempfile
-from pathlib import Path
-
-from uuid import UUID
 
 def read_dashboard_snapshot(
     connection: psycopg.Connection,
@@ -25,9 +23,7 @@ def read_dashboard_snapshot(
     with connection.transaction():
         with connection.cursor(row_factory=dict_row) as cursor:
             # Keep all queries on the same snapshot, even during concurrent writes.
-            cursor.execute(
-                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-            )
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
 
             cursor.execute(
                 """
@@ -103,6 +99,7 @@ def read_dashboard_snapshot(
         "observations": observations,
     }
 
+
 def _json_default(value: Any) -> Any:
     if isinstance(value, datetime):
         if value.utcoffset() is None:
@@ -139,13 +136,17 @@ def serialize_dashboard_snapshot(
         **snapshot,
     }
 
-    return json.dumps(
-        payload,
-        default=_json_default,
-        ensure_ascii=False,
-        allow_nan=False,
-        indent=2,
-    ) + "\n"
+    return (
+        json.dumps(
+            payload,
+            default=_json_default,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
 
 def write_dashboard_snapshot(
     snapshot: dict[str, Any],

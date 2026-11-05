@@ -82,7 +82,10 @@ def test_ignores_unfinished_or_failed_runs(db_connection, status):
             error_message="Simulated failure",
         )
 
-    assert get_last_successful_date(
-        db_connection,
-        initial_date=date(2026, 10, 20),
-    ) is None
+    assert (
+        get_last_successful_date(
+            db_connection,
+            initial_date=date(2026, 10, 20),
+        )
+        is None
+    )

@@ -9,7 +9,6 @@ from tender_intelligence.history import run_history
 from tender_intelligence.pipeline import run_incremental
 from tender_intelligence.predecessors import find_missing_predecessor_publications
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -64,9 +63,7 @@ def refresh_ingestion(
         not connection.autocommit
         or connection.info.transaction_status != TransactionStatus.IDLE
     ):
-        raise ValueError(
-            "Refresh requires an idle connection with autocommit enabled"
-        )
+        raise ValueError("Refresh requires an idle connection with autocommit enabled")
 
     incremental_run_id = run_incremental(
         connection,
@@ -98,9 +95,7 @@ def refresh_ingestion(
         )
 
         if run_id is None:
-            raise RuntimeError(
-                "History returned no run despite missing predecessors"
-            )
+            raise RuntimeError("History returned no run despite missing predecessors")
 
         _require_successful_run(connection, run_id)
         history_run_ids.append(run_id)

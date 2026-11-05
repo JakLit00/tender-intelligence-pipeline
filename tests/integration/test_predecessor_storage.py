@@ -1,20 +1,15 @@
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
 
+from tender_intelligence.models import PreparedNoticeBundle
 from tender_intelligence.predecessors import (
     DownloadedPredecessor,
+    find_missing_predecessor_publications,
     persist_predecessor,
 )
 from tender_intelligence.preparation import prepare_notice
-
-from dataclasses import replace
-
-from tender_intelligence.predecessors import (
-    find_missing_predecessor_publications,
-)
-
-from tender_intelligence.models import PreparedNoticeBundle
 from tender_intelligence.storage import register_notice, save_prepared_notice
 
 PUBLICATION_NUMBER = "722762-2026"
@@ -139,6 +134,7 @@ def test_rolls_back_registration_when_processing_raises(
     ).fetchone()
 
     assert row == (0,)
+
 
 @pytest.fixture(params=["publication_number", "notice_version"])
 def predecessor_chain(request, downloaded_predecessor):
