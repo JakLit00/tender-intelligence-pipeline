@@ -2,7 +2,7 @@
 
 ## Purpose and development sequence
 
-This document records implementation decisions and operational knowledge. It describes the implemented system rather than a future feature list. Publication tooling is implemented; repository hosting settings and a live deployment require separate verification.
+This document records implementation decisions and operational knowledge. The [public dashboard](https://jaklit00.github.io/tender-intelligence-pipeline/) is hosted on GitHub Pages and serves the latest published snapshot independently of the local database. Refresh and publication are manually operated; no automatic daily publication or completed multi-day operational trial is claimed.
 
 1. **Inspect real TED data.** Examine search metadata and XML before defining the relational model. Distinguish publication numbers, notice UUIDs, versions, procedures and lot identifiers. Verify submission deadline paths with real change chains.
 2. **Build preparation functions.** Separate extraction from normalization and business classification. Cover publication-number references and UUID-version references with focused tests.
@@ -75,11 +75,25 @@ At the code-quality checkpoint, the local Python suite reported **304 passed**, 
 
 The GitHub Actions workflow uses Ubuntu 24.04 and installs Python, Node.js, application dependencies and dbt from a clean checkout. It starts an isolated PostgreSQL test service, runs Python and dashboard tests, builds/tests dbt and checks Ruff/Prettier. The workflow does not run the full live TED ingestion scenario.
 
-A full live refresh on **5 November 2026** succeeded on Ubuntu 26.04 under WSL2 with Python 3.13.18. It produced **204 scope publications and 401 lot observations**, completed dbt with PASS=35 and matched every exported summary metric against the JavaScript implementation. Windows had produced the same cohort counts earlier that day. Equal counts alone are not proof of byte-identical datasets.
+A full live refresh on **5 November 2026** succeeded on Ubuntu 26.04 under WSL2 with Python 3.13.18. It produced **204 scope publications and 401 lot observations**, completed dbt with PASS=35 and matched every exported summary metric against the JavaScript implementation. These counts describe that historical snapshot, not a fixed expectation for current data. Windows had produced the same cohort counts earlier that day. Equal counts alone are not proof of byte-identical datasets.
 
 Mocked orchestration tests exercise stage failures and preservation of the previous snapshot. Database integration tests exercise actual transactions and constraints. dbt unit tests use controlled inputs to check classification; data tests check built relations. Passing tests do not constitute a complete security audit or a guarantee of source completeness.
 
 Integration tests now build dbt views using a temporary profile fixed to the test database, exercise a nonempty SQL → reporting-role export → real JavaScript validator flow, reject cycles through real dbt build, and check denied role permissions. Install `.venv-dbt` and Node before running them. Publisher tests use temporary local bare remotes and cover dry runs, history preservation, malformed ZIPs, unexpected branch files, concurrent updates and safe diagnostics. They never contact the real publishing remote.
+
+From the project root with the application environment active, start the separate test database before running checks:
+
+```bash
+docker compose -p tender-intelligence-tests -f compose.yaml -f compose.test.yaml up -d --wait postgres
+python -m pytest -q
+python scripts/run_dbt.py build --target test
+python -m ruff check src scripts tests
+python -m ruff format src scripts tests --check
+node --test tests/dashboard/*.test.mjs
+npm run format:check
+```
+
+Use `npm.cmd` instead of `npm` if PowerShell blocks the npm script. Test database data is disposable. Integration tests use a dedicated temporary dbt profile and do not load `.env`.
 
 ## Fresh setup and environment isolation
 
@@ -93,12 +107,54 @@ SQL files in `sql/init/` initialize a fresh volume. They are not an automatic mi
 
 ## Daily operating procedure
 
-1. Start Docker and the working PostgreSQL service; verify it is healthy.
-2. Activate the application environment and ensure native Node.js is on PATH.
-3. Run `python scripts/refresh_dashboard.py` once and wait for completion.
-4. Check the final success message, run IDs, cohort counts and metric validation. Inspect failures rather than treating partial ingestion as successful publication.
-5. Open the local dashboard; check generation time, date range, filters and a sample TED detail link. Counts can remain unchanged on a day with no matching publications.
-6. Record any operational findings. Do not claim public data has refreshed merely because local export succeeded.
+From the project root, activate the application environment, start Docker and ensure native Node.js is on PATH:
+
+```bash
+docker compose up -d --wait postgres
+python scripts/refresh_dashboard.py
+```
+
+Run one refresh at a time. Before publishing:
+
+1. Require exit code zero and the final `Local dashboard refreshed successfully` message, following successful dbt build and JSON/metric validation.
+2. Record the printed `Incremental run`, `History runs`, `Scope notices` and `Lot observations`. Check the counts against the previous run; unchanged counts can be legitimate on a day with no matching publications.
+3. Inspect `generated_at`, the scope date range and public fields in `dashboard/data/dashboard.json`. Preview the dashboard with `python -m http.server 8000 --bind 127.0.0.1 --directory dashboard`; check filters and a sample TED link at `http://127.0.0.1:8000`.
+4. After those checks succeed, run `python scripts/publish_dashboard.py --publish` with repository write access. Keep the reviewed snapshot and page files unchanged until publication completes.
+5. Check the GitHub Pages deployment result for the new `gh-pages` commit, then open the public dashboard. Compare its generation time, scope and unfiltered counts with the reviewed local snapshot. A successful push alone does not prove Pages has finished deploying.
+
+**Stop publication after a failed refresh.** The previous valid JSON is deliberately retained and can still pass the publisher's contract and metric checks. Those checks establish consistency, not freshness or success of the latest ingestion. Fix the failed stage and repeat the refresh and review first.
+
+### Build, dry run and publication
+
+The optional local build is useful for inspecting the package; it is not required as a separate step in daily operation:
+
+```bash
+python scripts/build_dashboard.py
+```
+
+It creates `dist/dashboard.zip` with only `index.html`, `styles.css`, `app.js`, `analytics.mjs`, `contract.mjs`, `data/dashboard.json` and `.nojekyll`. The copied JSON must satisfy the [dashboard contract](dashboard-contract.md), and JavaScript recalculates metrics from its observations and compares them with the exported dbt summary. Validation occurs before atomic replacement of an older ZIP. Building does not contact GitHub or refresh the database.
+
+Both publisher modes require a clean Git working tree, configured Git `user.name` and `user.email`, and Git authentication with appropriate repository access. Configure credentials through Git's credential mechanism; do not embed tokens in commands or documentation. The destination is fixed to **JakLit00/tender-intelligence-pipeline** in `scripts/publish_dashboard.py`, rather than inferred from a fork's `origin`. Commit reviewed code changes before publishing; the local snapshot and ZIP are ignored by Git.
+
+```bash
+python scripts/publish_dashboard.py
+```
+
+Without `--publish`, this is a **networked dry run**: it rebuilds and validates the ZIP, contacts GitHub, and reads the existing `gh-pages` branch into a temporary Git repository. If content changed, it creates a local deployment commit identifying the source code commit and executes `git push --dry-run`. The remote branch is unchanged, but authentication may be required and the local ZIP is replaced.
+
+```bash
+python scripts/publish_dashboard.py --publish
+```
+
+Actual publication rebuilds and validates the package again; it does not reuse an immutable artifact approved by the dry run. Preserve the same snapshot and site files between inspection and publication. A normal push appends the deployment commit to `gh-pages` history, rejects concurrent remote updates and skips identical content. Unexpected tracked files on that branch or unexpected archive entries stop publication. Git failures report the operation and a safe diagnostic category without echoing credential-bearing stderr.
+
+The temporary repository is removed afterwards; it does not switch the source checkout's branch. The script updates `gh-pages` but does not configure GitHub Pages. Pages serves the branch's root directory, and its deployment must be checked separately. The project's CI workflow runs tests and has no daily refresh or publication step.
+
+### Comparing runs across days
+
+`ops.pipeline_runs` stores run modes, statuses, date ranges and timing; `ops.run_notices` records each publication's outcome for a run. Use the run IDs printed by refresh to inspect failures or skips. A successful ingestion run alone does not establish that later dbt, export or publication stages succeeded.
+
+The `gh-pages` history preserves the published `data/dashboard.json` versions. Compare snapshots between deployment commits to inspect changes in generation time, scope, observations and metrics; record the deployment commit alongside the run IDs when investigating daily differences.
 
 To inspect recent runs:
 
@@ -135,7 +191,7 @@ Feature branches and pull requests keep changes reviewable. CI checks precede me
 
 Secrets, local payloads, generated snapshots and virtual environments stay out of Git. The current static UI creates text content through DOM APIs and constructs TED links from publication identifiers; these choices still require review alongside dependency, export and workflow configuration.
 
-The [README publication procedure](../README.md#package-and-publish-the-dashboard) describes local building, networked dry runs and explicit publication. The publisher uses a fixed repository URL, preserves branch history and refuses unexpected files. It does not configure Pages, refresh data or prove that a hosted deployment succeeded. Verify the final payload and hosting independently, and observe several daily refreshes before claiming an operational trial.
+The [README daily commands](../README.md#daily-use) provide the short operator entry point; [publication details](#build-dry-run-and-publication) above cover packaging and deployment checks. Record evidence across several daily refreshes and publications before claiming a completed operational trial.
 
 The audit fixes require no table or role migration. Deploy the Python/JavaScript changes together and run the normal dbt build to execute the additional cycle check. Review any existing failed source records or previously invalid coverage separately; no automatic repair of historical operational records is performed.
 
