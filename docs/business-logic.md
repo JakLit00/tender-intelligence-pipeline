@@ -101,7 +101,7 @@ The headline extension rate is not the percentage of all Polish IT tenders whose
 
 Date boundaries are inclusive. Text search checks publication numbers, notice titles and buyer names. Metrics and status counts are recalculated for the filtered observations. Snapshot metadata describes the full exported cohort and its generation time.
 
-The detail view provides current and previous deadlines, reference context and a link to TED. Displayed exact timestamps use UTC; preserved local dates retain the source's calendar-date context. The dashboard remains a historical snapshot until refreshed.
+The detail view provides current and previous deadlines, reference context and a link to TED. Displayed exact timestamps use UTC; preserved local dates retain the source's calendar-date context. The public dashboard changes only after a new snapshot is published. The [5–10 November 2026 trial](development-notes.md#validation-evidence-and-boundaries) confirmed growth in published observations and consistent summary metrics across four snapshots.
 
 The browser calculates metrics from the exported rows. Before replacing the local snapshot, the refresh command verifies the unfiltered JavaScript metrics against the dbt summary. Agreement checks implementation consistency; it does not prove the source data is complete or correct.
 

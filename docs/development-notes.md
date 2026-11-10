@@ -2,7 +2,7 @@
 
 ## Purpose and development sequence
 
-This document records implementation decisions and operational knowledge. The [public dashboard](https://jaklit00.github.io/tender-intelligence-pipeline/) is hosted on GitHub Pages and serves the latest published snapshot independently of the local database. Refresh and publication are manually operated; no automatic daily publication or completed multi-day operational trial is claimed.
+This document records implementation decisions and operational knowledge. The [public dashboard](https://jaklit00.github.io/tender-intelligence-pipeline/) serves the latest published snapshot independently of the local database. A manual refresh and publication trial spanning 5–10 November 2026 was checked against published snapshots and the latest dbt results. Daily execution is not automated.
 
 1. **Inspect real TED data.** Examine search metadata and XML before defining the relational model. Distinguish publication numbers, notice UUIDs, versions, procedures and lot identifiers. Verify submission deadline paths with real change chains.
 2. **Build preparation functions.** Separate extraction from normalization and business classification. Cover publication-number references and UUID-version references with focused tests.
@@ -71,11 +71,20 @@ The shared [dashboard contract](dashboard-contract.md) rejects missing/unknown f
 
 ## Validation evidence and boundaries
 
-At the code-quality checkpoint, the local Python suite reported **304 passed**, dashboard tests **7 passed**, and dbt build **PASS=35** (7 views, 27 data tests and 1 unit test). These are recorded results, not permanent expected counts.
+The manual trial covered refresh, analytical output, JSON validation and publication to `gh-pages`. Four historical snapshots passed the real JavaScript contract and metric consistency validator:
+
+| Generated (UTC, 2026) | Commit | Notices | Lot observations |
+| --- | --- | ---: | ---: |
+| 5 Nov, 22:53 | `d6da029126` | 204 | 401 |
+| 6 Nov, 10:54 | `57e324df4c` | 217 | 427 |
+| 10 Nov, 00:25 | `9ae114b773` | 250 | 480 |
+| 10 Nov, 13:18 | `2b8ec41ab2` | 250 | 480 |
+
+No earlier publication–lot keys disappeared. The final two snapshots retained identical counts and summary metrics. The latest local dbt build on 10 November completed with **7 successful models and 29 passing tests**. These are dated observations, not fixed expectations for future runs. This check did not inspect every database run, TED retrieval completeness or Pages deployment logs, and does not establish uninterrupted daily execution.
 
 The GitHub Actions workflow uses Ubuntu 24.04 and installs Python, Node.js, application dependencies and dbt from a clean checkout. It starts an isolated PostgreSQL test service, runs Python and dashboard tests, builds/tests dbt and checks Ruff/Prettier. The workflow does not run the full live TED ingestion scenario.
 
-A full live refresh on **5 November 2026** succeeded on Ubuntu 26.04 under WSL2 with Python 3.13.18. It produced **204 scope publications and 401 lot observations**, completed dbt with PASS=35 and matched every exported summary metric against the JavaScript implementation. These counts describe that historical snapshot, not a fixed expectation for current data. Windows had produced the same cohort counts earlier that day. Equal counts alone are not proof of byte-identical datasets.
+Earlier full refreshes were verified on Windows and Ubuntu 26.04 under WSL2 with Python 3.13.18 on 5 November 2026. Both produced the same cohort counts; equal counts alone do not prove byte-identical datasets.
 
 Mocked orchestration tests exercise stage failures and preservation of the previous snapshot. Database integration tests exercise actual transactions and constraints. dbt unit tests use controlled inputs to check classification; data tests check built relations. Passing tests do not constitute a complete security audit or a guarantee of source completeness.
 
@@ -191,7 +200,7 @@ Feature branches and pull requests keep changes reviewable. CI checks precede me
 
 Secrets, local payloads, generated snapshots and virtual environments stay out of Git. The current static UI creates text content through DOM APIs and constructs TED links from publication identifiers; these choices still require review alongside dependency, export and workflow configuration.
 
-The [README daily commands](../README.md#daily-use) provide the short operator entry point; [publication details](#build-dry-run-and-publication) above cover packaging and deployment checks. Record evidence across several daily refreshes and publications before claiming a completed operational trial.
+Use the [README daily commands](../README.md#daily-use) and [publication checks](#build-dry-run-and-publication) for subsequent runs; retain run IDs and deployment commits when extending the recorded trial.
 
 The audit fixes require no table or role migration. Deploy the Python/JavaScript changes together and run the normal dbt build to execute the additional cycle check. Review any existing failed source records or previously invalid coverage separately; no automatic repair of historical operational records is performed.
 

@@ -49,3 +49,5 @@ The eight counts are non-negative safe integers: `total_lot_observations`, `matc
 `comparison_coverage_pct` and `extension_rate_pct` are finite numbers in `[0, 100]`, or null when their denominators are zero. `median_extension_hours` is a positive finite number, or null without extensions.
 
 All summary metrics are recalculated from observations and compared with the exported SQL summary. Counts must match exactly; floating-point metrics use relative tolerance `1e-9` with an absolute floor of `1e-9`. This checks implementation agreement, not source completeness or freshness.
+
+All four published snapshots inspected during the [5–10 November 2026 trial](development-notes.md#validation-evidence-and-boundaries) passed this validator. The same checks remain required for each new snapshot.
