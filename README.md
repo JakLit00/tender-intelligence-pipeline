@@ -29,6 +29,8 @@ flowchart TD
 
 **Live on GitHub Pages:** the public dashboard shows the latest published snapshot and remains available when the local database is switched off. Updates are published manually after a successful local refresh. Earlier full refreshes were verified on Windows and Ubuntu 26.04 under WSL2; CI runs on Ubuntu 24.04.
 
+**Verified in use:** a manual refresh and publication trial spanning 5–10 November 2026 produced four validated snapshots, growing from 204 notices / 401 lot observations to 250 / 480. See [validation evidence](docs/development-notes.md#validation-evidence-and-boundaries).
+
 ## Run on another computer
 
 <details>
